@@ -1,4 +1,4 @@
-import { Bell, Search, Moon, Sun, User, Menu } from "lucide-react";
+import { Bell, Search, Moon, Sun, User, Menu, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,6 +13,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface AppHeaderProps {
   sidebarCollapsed: boolean;
@@ -21,11 +23,21 @@ interface AppHeaderProps {
 
 export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderProps) {
   const [darkMode, setDarkMode] = useState(false);
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
     document.documentElement.classList.toggle("dark");
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <header
@@ -119,9 +131,9 @@ export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderPro
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src="" alt="User" />
+                  <AvatarImage src={profile?.avatar_url ?? ""} alt={displayName} />
                   <AvatarFallback className="bg-primary text-primary-foreground">
-                    <User className="h-5 w-5" />
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -129,17 +141,25 @@ export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderPro
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium">Admin User</p>
+                  <p className="text-sm font-medium">{displayName}</p>
                   <p className="text-xs text-muted-foreground">
-                    admin@saashub.com
+                    {user?.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/settings")}>
+                Settings
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">
+              <DropdownMenuItem 
+                className="text-destructive focus:text-destructive"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
