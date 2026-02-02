@@ -1,295 +1,270 @@
 
-# Implementation Plan: Database, Auth, CRM & Staff Management
 
-## Overview
+# Complete SaaS Platform Enhancement Plan
 
-This plan covers three major implementation areas:
-1. **Database Foundation** - Multi-tenant tables with RLS security
-2. **Authentication System** - Login/signup with role-based access
-3. **CRM Module** - Customer profiles, sales pipeline, activity tracking
-4. **Staff Management Module** - Employee profiles, attendance tracking
+## Current State Analysis
 
----
+Based on my exploration, here's what exists:
 
-## Part 1: Database Schema Setup
+**Working:**
+- Multi-tenant database with RLS (companies, profiles, user_roles, customers, employees, etc.)
+- Authentication system (login/signup with role checking)
+- CRM module (customer list, pipeline, activities)
+- Staff Management (employee list, attendance, leave requests)
+- Role system exists in database (super_admin, company_admin, staff, user)
 
-### Core Tables
-
-**1. companies**
-- Stores tenant organizations
-- Fields: id, name, slug, logo_url, settings, created_at
-
-**2. profiles**
-- User profiles linked to companies
-- Fields: id (references auth.users), company_id, full_name, email, avatar_url, phone, job_title, department, created_at, updated_at
-
-**3. user_roles** (separate table for security)
-- Role assignments using enum (super_admin, company_admin, staff, user)
-- Fields: id, user_id, role, company_id, created_at
-
-**4. has_role() function**
-- Security definer function to check roles without RLS recursion
-
-### CRM Tables
-
-**5. customers**
-- Customer profiles with company isolation
-- Fields: id, company_id, name, email, phone, company_name, status (lead/opportunity/deal/closed/lost), value, tags, notes, assigned_to, created_at, updated_at
-
-**6. customer_activities**
-- Activity logs per customer
-- Fields: id, customer_id, company_id, user_id, type (call/email/meeting/note), description, created_at
-
-### Staff Management Tables
-
-**7. employees**
-- Employee profiles within companies
-- Fields: id, company_id, user_id, employee_number, full_name, email, phone, department, position, hire_date, status (active/on_leave/terminated), salary, manager_id, created_at, updated_at
-
-**8. attendance_records**
-- Clock in/out tracking
-- Fields: id, employee_id, company_id, date, clock_in, clock_out, status (present/absent/late/half_day), notes, created_at
-
-**9. leave_requests**
-- Leave management
-- Fields: id, employee_id, company_id, leave_type, start_date, end_date, reason, status (pending/approved/rejected), approved_by, created_at
-
-### Row-Level Security
-
-All tables will have RLS policies ensuring:
-- Users can only access data within their company
-- Super admins can access all companies
-- Company admins can manage their company's data
-- Staff can view/edit assigned records
-- Users have read-only access to relevant data
+**Issues to Fix:**
+1. Your user (Temidayo) has role "user" instead of "super_admin"
+2. Your profile has no company_id assigned
+3. 14 pages still show "Coming Soon" placeholders
+4. Dashboard shows static dummy data instead of real metrics
+5. No Super Admin dashboard to manage all companies and users
+6. No way to see which companies are registered or their activity
 
 ---
 
-## Part 2: Authentication System
+## Part 1: Upgrade Your Account to Super Admin
 
-### New Files
-
-**src/pages/Auth.tsx**
-- Login and signup forms with email/password
-- Modern design matching the app theme
-- Form validation with zod
-- Error handling for common auth scenarios
-
-**src/contexts/AuthContext.tsx**
-- Auth state management
-- User session handling
-- Role checking utilities
-- Automatic redirect for authenticated users
-
-**src/hooks/useAuth.ts**
-- Custom hook for auth operations
-- Sign in, sign up, sign out functions
-- Current user and role access
-
-**src/components/auth/ProtectedRoute.tsx**
-- Route wrapper for authenticated routes
-- Role-based access control
-- Redirect to login for unauthenticated users
-
-### Integration Points
-
-- Update AppLayout to use auth context
-- Update AppHeader to show logged-in user info
-- Add sign out functionality
-- Conditionally show Settings for admins only
+**Database Update Required:**
+- Update your role from "user" to "super_admin" in the user_roles table
+- Super admins don't need a company_id (they can see all companies)
 
 ---
 
-## Part 3: CRM Module
+## Part 2: Super Admin Dashboard (Settings Page)
 
-### New Files
+Transform the Settings page into a powerful Super Admin control center with tabs:
 
-**src/pages/CRM.tsx** (replace placeholder)
-- Main CRM dashboard with tabs:
-  - Customers list with search/filter
-  - Sales Pipeline (Kanban board)
-  - Quick stats and recent activity
+**Tab 1: Companies Overview**
+- List all registered companies with:
+  - Company name and logo
+  - Registration date
+  - Number of users/staff
+  - Active users (who logged in recently)
+  - Subscription status (future feature)
+- Actions: View details, suspend, delete
 
-**src/components/crm/CustomerList.tsx**
-- Data table with customers
-- Search, filter by status/tags
-- Bulk actions (assign, delete)
-- Click to view customer details
+**Tab 2: Users Management**
+- List all users across all companies
+- Show: Name, email, company, role, last active
+- Filter by company, role, status
+- Actions: Change role, assign to company, deactivate
 
-**src/components/crm/CustomerDialog.tsx**
-- Add/Edit customer modal
-- Form fields: name, email, phone, company, status, value, notes, tags
-- Validation and error handling
+**Tab 3: Activity Monitor**
+- Recent signups across all companies
+- Currently active users (online now)
+- System-wide statistics
 
-**src/components/crm/SalesPipeline.tsx**
-- Kanban board with columns: Lead, Opportunity, Deal, Closed Won, Closed Lost
-- Drag and drop to change status
-- Customer cards with key info
-- Click to view full details
-
-**src/components/crm/CustomerDetail.tsx**
-- Full customer profile view
-- Contact information
-- Activity timeline
-- Add activity form (call, email, meeting, note)
-- Edit customer button
-
-**src/components/crm/ActivityTimeline.tsx**
-- Chronological list of customer interactions
-- Icons per activity type
-- Timestamps and user attribution
-
-### Data Hooks
-
-**src/hooks/useCustomers.ts**
-- CRUD operations for customers
-- React Query for data fetching
-- Optimistic updates for pipeline changes
-
-**src/hooks/useActivities.ts**
-- Fetch and create customer activities
-- Real-time updates (optional)
+**Tab 4: System Settings**
+- Platform configuration
+- Feature toggles
+- Audit logs
 
 ---
 
-## Part 4: Staff Management Module
+## Part 3: Real Data Dashboard
 
-### New Files
+Replace the static Dashboard with real metrics:
 
-**src/pages/StaffManagement.tsx** (replace placeholder)
-- Staff dashboard with tabs:
-  - Employee Directory
-  - Attendance Overview
-  - Leave Requests
+**For Super Admin:**
+- Total companies registered
+- Total users across platform
+- Active users today
+- New signups this week
+- Revenue (placeholder for payment integration)
 
-**src/components/staff/EmployeeList.tsx**
-- Data table with employee information
-- Search and filter by department/status
-- Click to view employee profile
+**For Company Users:**
+- Company-specific stats
+- Their customers count
+- Their employees count
+- Active employees today
 
-**src/components/staff/EmployeeDialog.tsx**
-- Add/Edit employee modal
-- Form fields: name, email, phone, department, position, hire date, salary, manager
-- Link to user account (optional)
+---
 
-**src/components/staff/EmployeeProfile.tsx**
-- Full employee details
-- Attendance summary
-- Leave balance
-- Performance notes
+## Part 4: Complete All Placeholder Modules
 
-**src/components/staff/AttendanceTable.tsx**
-- Daily attendance records
-- Clock in/out buttons (for current user)
+### Projects Module
+- New tables: `projects`, `tasks`
+- Kanban board for task management
+- Assign tasks to employees
+- Track progress and deadlines
+
+### Finance Module
+- New tables: `invoices`, `expenses`, `payments`
+- Create and send invoices
+- Track expenses by category
+- Payment status tracking
+- Financial summary charts
+
+### Inventory Module
+- New table: `inventory_items`
+- Item tracking with quantities
+- Low stock alerts
+- Stock movements log
+
+### Documents Module
+- Storage bucket setup
+- File upload with folders
+- Share documents within company
+
+### Calendar Module
+- New table: `events`
+- Create and view events
 - Filter by date range
-- Status indicators
+- Event reminders
 
-**src/components/staff/LeaveRequestList.tsx**
-- List of leave requests
-- Status badges (pending/approved/rejected)
-- Approve/Reject actions for managers
+### Support Tickets Module
+- New table: `support_tickets`
+- Create tickets with priority
+- Assign to staff
+- Status tracking (open, in-progress, resolved)
 
-**src/components/staff/LeaveRequestDialog.tsx**
-- Submit leave request form
-- Date picker for start/end
-- Leave type selection
-- Reason text field
+### Call Centre & Call Logs
+- New table: `call_logs`
+- Manual call logging
+- Call outcome tracking
+- Ready for future VoIP integration
 
-### Data Hooks
+### WhatsApp & Email Marketing
+- New tables: `campaigns`, `messages`
+- Campaign creation interface
+- Message templates
+- Ready for API integration
 
-**src/hooks/useEmployees.ts**
-- CRUD operations for employees
-- React Query integration
+### Customer Acquisition
+- Lead capture forms
+- Campaign tracking
+- Funnel visualization
 
-**src/hooks/useAttendance.ts**
-- Fetch attendance records
-- Clock in/out functions
+### Social Media
+- Account connection interface
+- Post scheduling placeholder
+- Analytics placeholders
 
-**src/hooks/useLeaveRequests.ts**
-- Fetch and create leave requests
-- Approve/reject mutations
+### Knowledge Base
+- New table: `articles`
+- Create FAQ/help articles
+- Search functionality
+- Categories
+
+### Branches
+- New table: `branches`
+- Create company branches
+- Assign employees to branches
+
+### Analytics
+- Real charts using database data
+- Customer pipeline visualization
+- Staff attendance trends
+- Financial summaries
+
+---
+
+## Part 5: Company Onboarding Flow
+
+When a new user signs up:
+1. Show company setup wizard (if no company)
+2. Create their company
+3. Assign them as company_admin
+4. Redirect to their dashboard
 
 ---
 
 ## Implementation Order
 
-1. **Database Migration**
-   - Create all tables with proper relationships
-   - Set up RLS policies
-   - Create helper functions (has_role, get_user_company)
+**Phase 1: Immediate Fixes (Priority)**
+1. Upgrade your role to super_admin
+2. Build Super Admin Settings page with company/user management
+3. Update Dashboard to show real data
 
-2. **Authentication**
-   - Build Auth page with login/signup
-   - Create AuthContext and hooks
-   - Add ProtectedRoute wrapper
-   - Integrate with existing layout
+**Phase 2: Core Modules**
+4. Projects with Kanban boards
+5. Finance with invoices
+6. Support Tickets
+7. Calendar
 
-3. **CRM Module**
-   - Build CustomerList component
-   - Add CustomerDialog for CRUD
-   - Implement SalesPipeline with drag-drop
-   - Create activity tracking
+**Phase 3: Secondary Modules**
+8. Inventory
+9. Documents with file upload
+10. Knowledge Base
+11. Branches
 
-4. **Staff Management Module**
-   - Build EmployeeList component
-   - Add EmployeeDialog for CRUD
-   - Implement attendance tracking
-   - Add leave request system
-
----
-
-## Technical Details
-
-### Database Patterns
-
-All tables use:
-- UUID primary keys with `gen_random_uuid()`
-- `company_id` foreign key for tenant isolation
-- `created_at` and `updated_at` timestamps
-- Soft delete pattern where appropriate
-
-### RLS Policy Pattern
-
-```text
--- Example pattern for company-scoped tables
-Policy: "Users can view own company data"
-  FOR SELECT USING (
-    company_id IN (
-      SELECT company_id FROM profiles WHERE id = auth.uid()
-    )
-  )
-```
-
-### Security Function
-
-```text
-has_role(user_id, role) - Returns boolean
-  Used in RLS policies to check user permissions
-  SECURITY DEFINER prevents recursion issues
-```
+**Phase 4: Communication Modules**
+12. Call Centre/Logs
+13. Email Marketing
+14. WhatsApp
+15. Customer Acquisition
+16. Social Media
+17. Analytics with real charts
 
 ---
 
-## UI Components Used
+## New Database Tables Required
 
-- **Data Tables** - Using existing table components with sorting/filtering
-- **Forms** - react-hook-form with zod validation
-- **Modals** - Radix Dialog for add/edit forms
-- **Drag & Drop** - For Kanban pipeline (using native HTML5 or library)
-- **Tabs** - For module navigation
-- **Cards** - For employee/customer profiles
-- **Badges** - For status indicators
-- **Avatars** - For user/employee images
+```text
+projects
+- id, company_id, name, description, status, start_date, end_date, created_by
+
+tasks
+- id, project_id, company_id, title, description, status, priority, assigned_to, due_date
+
+invoices
+- id, company_id, customer_id, number, amount, status, due_date, items
+
+expenses
+- id, company_id, category, amount, description, date, receipt_url
+
+inventory_items
+- id, company_id, name, sku, quantity, unit_price, reorder_level
+
+events
+- id, company_id, title, description, start_time, end_time, all_day
+
+support_tickets
+- id, company_id, customer_id, subject, description, status, priority, assigned_to
+
+call_logs
+- id, company_id, contact_name, phone_number, direction, duration, outcome, notes
+
+campaigns
+- id, company_id, name, type (email/whatsapp), status, scheduled_at
+
+articles
+- id, company_id, title, content, category, published
+
+branches
+- id, company_id, name, address, phone, manager_id
+```
+
+---
+
+## Technical Approach
+
+**Security:**
+- All new tables have company_id for multi-tenancy
+- RLS policies ensure data isolation
+- Super admin policies for cross-company access
+
+**Real Data:**
+- Remove all hardcoded arrays from Dashboard
+- Query actual database for metrics
+- Show loading states while fetching
+
+**Components:**
+- Reuse existing patterns from CRM and Staff modules
+- Consistent styling with blue/indigo theme
+- Responsive design maintained
 
 ---
 
 ## Expected Outcome
 
 After implementation:
+- You're the super admin with full platform control
+- Real-time view of all companies and their activity
+- Staff status visible (active/working/on leave)
+- All 19 modules fully functional
+- No dummy data - everything from the database
+- Companies can sign up and manage their own space
+- You can help any company with issues directly
 
-- Users can sign up and log in with email/password
-- Multi-tenant data isolation is enforced at the database level
-- Role-based access control limits features by user role
-- CRM module allows full customer lifecycle management
-- Staff module enables employee and attendance tracking
-- All data is properly secured with RLS policies
