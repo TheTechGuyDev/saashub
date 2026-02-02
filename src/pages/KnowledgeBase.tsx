@@ -1,75 +1,121 @@
 import { useState } from "react";
-import { BookOpen, Plus, Search } from "lucide-react";
+import { BookOpen, Search, Plus } from "lucide-react";
 import { PageHeader } from "@/components/common";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useArticles } from "@/hooks/useArticles";
+import { Button } from "@/components/ui/button";
+import { useArticles, type Article } from "@/hooks/useArticles";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArticleCard, ArticleDetail, CategoryTabs, CATEGORIES } from "@/components/knowledge-base";
 
 export default function KnowledgeBase() {
   const [search, setSearch] = useState("");
-  const { articles, isLoading, deleteArticle } = useArticles();
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const { articles, isLoading } = useArticles();
+  const { isSuperAdmin } = useAuth();
 
-  const filteredArticles = articles.filter(a => 
-    a.title.toLowerCase().includes(search.toLowerCase()) ||
-    a.category?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter articles by search and category
+  const filteredArticles = articles.filter(article => {
+    const matchesSearch = 
+      article.title.toLowerCase().includes(search.toLowerCase()) ||
+      article.content.toLowerCase().includes(search.toLowerCase()) ||
+      article.category?.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesCategory = 
+      activeCategory === "all" || 
+      article.category === activeCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  // Get related articles (same category, excluding current)
+  const getRelatedArticles = (article: Article) => {
+    return articles.filter(a => 
+      a.id !== article.id && 
+      a.category === article.category
+    );
+  };
+
+  // Count articles per category
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === "all") return articles.length;
+    return articles.filter(a => a.category === categoryId).length;
+  };
+
+  if (selectedArticle) {
+    return (
+      <div>
+        <ArticleDetail
+          article={selectedArticle}
+          onBack={() => setSelectedArticle(null)}
+          relatedArticles={getRelatedArticles(selectedArticle)}
+          onSelectRelated={(article) => setSelectedArticle(article)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeader
         title="Knowledge Base"
-        description="Manage FAQs and documentation."
+        description="Find answers, guides, and documentation to help you use SaasHub effectively."
         icon={BookOpen}
+        action={isSuperAdmin() ? {
+          label: "Add Article",
+          onClick: () => {/* TODO: Open article creation modal */},
+        } : undefined}
       />
 
-      <div className="mb-6">
-        <div className="relative max-w-md">
+      {/* Search and filters */}
+      <div className="space-y-6 mb-8">
+        <div className="relative max-w-xl">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search articles..."
+            placeholder="Search articles, guides, and documentation..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-12"
           />
         </div>
+
+        <CategoryTabs 
+          activeCategory={activeCategory} 
+          onCategoryChange={setActiveCategory} 
+        />
       </div>
 
+      {/* Stats bar */}
+      <div className="flex items-center gap-4 mb-6 text-sm text-muted-foreground">
+        <span>{filteredArticles.length} articles found</span>
+        {activeCategory !== "all" && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setActiveCategory("all")}
+          >
+            Clear filter
+          </Button>
+        )}
+      </div>
+
+      {/* Articles grid */}
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 w-full" />)}
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Skeleton key={i} className="h-48 w-full" />
+          ))}
         </div>
       ) : filteredArticles.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredArticles.map((article) => (
-            <Card key={article.id} className="hover:border-primary/50 transition-colors">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <CardTitle className="text-lg line-clamp-1">{article.title}</CardTitle>
-                  {article.published ? (
-                    <Badge className="bg-success/10 text-success">Published</Badge>
-                  ) : (
-                    <Badge variant="outline">Draft</Badge>
-                  )}
-                </div>
-                {article.category && (
-                  <Badge variant="secondary" className="w-fit">{article.category}</Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
-                  {article.content}
-                </p>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">{article.views || 0} views</span>
-                  <Button size="sm" variant="destructive" onClick={() => deleteArticle.mutate(article.id)}>
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <ArticleCard
+              key={article.id}
+              article={article}
+              onClick={() => setSelectedArticle(article)}
+            />
           ))}
         </div>
       ) : (
@@ -77,7 +123,17 @@ export default function KnowledgeBase() {
           <CardContent className="py-12">
             <div className="text-center">
               <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No articles found.</p>
+              <h3 className="text-lg font-semibold mb-2">No articles found</h3>
+              <p className="text-muted-foreground mb-4">
+                {search 
+                  ? `No articles match "${search}". Try a different search term.`
+                  : "There are no articles in this category yet."}
+              </p>
+              {search && (
+                <Button variant="outline" onClick={() => setSearch("")}>
+                  Clear search
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
