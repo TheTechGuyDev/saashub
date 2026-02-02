@@ -23,10 +23,12 @@ export function useArticles() {
   const articlesQuery = useQuery({
     queryKey: ["articles"],
     queryFn: async () => {
+      // Fetch both company articles and platform articles
       const { data, error } = await supabase
         .from("articles")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("category", { ascending: true })
+        .order("title", { ascending: true });
       
       if (error) throw error;
       return data as Article[];
