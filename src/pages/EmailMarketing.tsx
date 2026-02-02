@@ -1,26 +1,90 @@
 import { useState } from "react";
-import { Mail, Plus, Send, FileEdit, BarChart3 } from "lucide-react";
+import { Mail, Plus, Send, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCampaigns } from "@/hooks/useCampaigns";
+import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
+import { useCustomers } from "@/hooks/useCustomers";
 import { CampaignDialog } from "@/components/campaigns/CampaignDialog";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   scheduled: "bg-info/10 text-info",
-  running: "bg-success/10 text-success",
-  paused: "bg-warning/10 text-warning",
-  completed: "bg-primary/10 text-primary",
+  running: "bg-warning/10 text-warning",
+  paused: "bg-destructive/10 text-destructive",
+  completed: "bg-success/10 text-success",
 };
 
 export default function EmailMarketing() {
   const [showDialog, setShowDialog] = useState(false);
-  const { campaigns, isLoading, deleteCampaign } = useCampaigns("email");
+  const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
+  const { campaigns, isLoading, deleteCampaign, updateCampaign } = useCampaigns("email");
+  const { customers } = useCustomers();
+  const { toast } = useToast();
+
+  // Get customers with email addresses
+  const emailableCustomers = customers.filter(c => c.email);
+
+  const handleSendCampaign = async (campaign: Campaign) => {
+    if (!campaign.subject || !campaign.content) {
+      toast({
+        variant: "destructive",
+        title: "Cannot send campaign",
+        description: "Campaign must have a subject and content.",
+      });
+      return;
+    }
+
+    if (emailableCustomers.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No recipients",
+        description: "Add customers with email addresses first.",
+      });
+      return;
+    }
+
+    setSendingCampaignId(campaign.id);
+
+    try {
+      // Send to all customers with emails
+      const recipients = emailableCustomers.map(c => ({
+        email: c.email!,
+        name: c.name,
+      }));
+
+      const { data: result, error } = await supabase.functions.invoke("send-email-campaign", {
+        body: {
+          campaignId: campaign.id,
+          recipients,
+          subject: campaign.subject,
+          content: campaign.content,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Campaign sent!",
+        description: `Successfully sent to ${result.sentCount} of ${result.totalRecipients} recipients.`,
+      });
+    } catch (error: any) {
+      console.error("Error sending campaign:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to send campaign",
+        description: error.message || "An error occurred while sending emails.",
+      });
+    } finally {
+      setSendingCampaignId(null);
+    }
+  };
 
   return (
     <div>
@@ -55,21 +119,20 @@ export default function EmailMarketing() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Opens</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Email Recipients</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {campaigns.reduce((sum, c) => sum + (c.open_count || 0), 0)}
-            </div>
+            <div className="text-2xl font-bold">{emailableCustomers.length}</div>
+            <p className="text-xs text-muted-foreground">customers with email</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Clicks</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {campaigns.reduce((sum, c) => sum + (c.click_count || 0), 0)}
+            <div className="text-2xl font-bold text-success">
+              {campaigns.filter(c => c.status === 'completed').length}
             </div>
           </CardContent>
         </Card>
@@ -95,8 +158,6 @@ export default function EmailMarketing() {
                   <TableHead>Subject</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sent</TableHead>
-                  <TableHead>Opens</TableHead>
-                  <TableHead>Clicks</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -112,19 +173,35 @@ export default function EmailMarketing() {
                       </Badge>
                     </TableCell>
                     <TableCell>{campaign.sent_count || 0}</TableCell>
-                    <TableCell>{campaign.open_count || 0}</TableCell>
-                    <TableCell>{campaign.click_count || 0}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDistanceToNow(new Date(campaign.created_at), { addSuffix: true })}
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        size="sm" 
-                        variant="destructive" 
-                        onClick={() => deleteCampaign.mutate(campaign.id)}
-                      >
-                        Delete
-                      </Button>
+                      <div className="flex gap-2">
+                        {campaign.status === "draft" && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSendCampaign(campaign)}
+                            disabled={sendingCampaignId === campaign.id}
+                          >
+                            {sendingCampaignId === campaign.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4 mr-1" />
+                                Send
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => deleteCampaign.mutate(campaign.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

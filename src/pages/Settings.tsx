@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Settings as SettingsIcon, Building2, Users, Activity, Cog } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, Activity, Cog, Link } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,7 @@ import { CompaniesTab } from "@/components/settings/CompaniesTab";
 import { UsersTab } from "@/components/settings/UsersTab";
 import { ActivityTab } from "@/components/settings/ActivityTab";
 import { SystemTab } from "@/components/settings/SystemTab";
+import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 
 export default function Settings() {
   const { isSuperAdmin } = useAuth();
@@ -33,7 +34,7 @@ export default function Settings() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
           <TabsTrigger value="companies" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Companies</span>
@@ -45,6 +46,10 @@ export default function Settings() {
           <TabsTrigger value="activity" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             <span className="hidden sm:inline">Activity</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2">
+            <Link className="h-4 w-4" />
+            <span className="hidden sm:inline">Integrations</span>
           </TabsTrigger>
           <TabsTrigger value="system" className="flex items-center gap-2">
             <Cog className="h-4 w-4" />
@@ -62,6 +67,10 @@ export default function Settings() {
 
         <TabsContent value="activity">
           <ActivityTab />
+        </TabsContent>
+
+        <TabsContent value="integrations">
+          <IntegrationsTab />
         </TabsContent>
 
         <TabsContent value="system">
