@@ -1166,6 +1166,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_company_and_assign_admin: {
+        Args: { p_company_name: string; p_user_id: string }
+        Returns: string
+      }
+      generate_company_slug: { Args: { company_name: string }; Returns: string }
       get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {

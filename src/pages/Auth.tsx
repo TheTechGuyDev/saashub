@@ -17,6 +17,7 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -50,7 +51,7 @@ export default function Auth() {
 
   const signupForm = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { companyName: "", fullName: "", email: "", password: "", confirmPassword: "" },
   });
 
   const handleLogin = async (data: LoginFormData) => {
@@ -77,6 +78,8 @@ export default function Auth() {
 
   const handleSignup = async (data: SignupFormData) => {
     setIsLoading(true);
+    
+    // Sign up with company name stored in metadata
     const { error } = await signUp(data.email, data.password, data.fullName);
     setIsLoading(false);
 
@@ -91,11 +94,13 @@ export default function Auth() {
         description: errorMessage,
       });
     } else {
+      // Store company name for onboarding flow
+      localStorage.setItem("pending_company_name", data.companyName);
       toast({
         title: "Account created!",
-        description: "Welcome to SaasHub! You can now sign in to your account.",
+        description: "Welcome! You'll set up your company next.",
       });
-      setIsLogin(true);
+      navigate("/dashboard");
     }
   };
 
@@ -114,12 +119,12 @@ export default function Auth() {
         <Card className="border-border/50 shadow-xl">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">
-              {isLogin ? "Welcome back" : "Create an account"}
+              {isLogin ? "Welcome back" : "Register Your Company"}
             </CardTitle>
             <CardDescription className="text-center">
               {isLogin 
                 ? "Enter your credentials to access your account" 
-                : "Fill in your details to get started"}
+                : "Create your company account to get started"}
             </CardDescription>
           </CardHeader>
 
@@ -186,7 +191,23 @@ export default function Auth() {
             ) : (
               <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input
+                    id="companyName"
+                    type="text"
+                    placeholder="Your Company Ltd"
+                    {...signupForm.register("companyName")}
+                    className="h-11"
+                  />
+                  {signupForm.formState.errors.companyName && (
+                    <p className="text-sm text-destructive">
+                      {signupForm.formState.errors.companyName.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Your Full Name</Label>
                   <Input
                     id="fullName"
                     type="text"

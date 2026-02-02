@@ -1,32 +1,97 @@
 import { useState } from "react";
-import { MessageCircle, Plus, Send } from "lucide-react";
+import { MessageCircle, Plus, Send, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCampaigns } from "@/hooks/useCampaigns";
+import { useCampaigns, Campaign } from "@/hooks/useCampaigns";
+import { useCustomers } from "@/hooks/useCustomers";
 import { CampaignDialog } from "@/components/campaigns/CampaignDialog";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
 const statusColors: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   scheduled: "bg-info/10 text-info",
-  running: "bg-success/10 text-success",
-  paused: "bg-warning/10 text-warning",
-  completed: "bg-primary/10 text-primary",
+  running: "bg-warning/10 text-warning",
+  paused: "bg-destructive/10 text-destructive",
+  completed: "bg-success/10 text-success",
 };
 
 export default function WhatsApp() {
   const [showDialog, setShowDialog] = useState(false);
+  const [sendingCampaignId, setSendingCampaignId] = useState<string | null>(null);
   const { campaigns, isLoading, deleteCampaign } = useCampaigns("whatsapp");
+  const { customers } = useCustomers();
+  const { toast } = useToast();
+
+  // Get customers with phone numbers
+  const phoneableCustomers = customers.filter(c => c.phone);
+
+  const handleSendCampaign = async (campaign: Campaign) => {
+    if (!campaign.content) {
+      toast({
+        variant: "destructive",
+        title: "Cannot send campaign",
+        description: "Campaign must have message content.",
+      });
+      return;
+    }
+
+    if (phoneableCustomers.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No recipients",
+        description: "Add customers with phone numbers first.",
+      });
+      return;
+    }
+
+    setSendingCampaignId(campaign.id);
+
+    try {
+      // Send to all customers with phone numbers
+      const recipients = phoneableCustomers.map(c => ({
+        phone: c.phone!,
+        name: c.name,
+      }));
+
+      const { data: result, error } = await supabase.functions.invoke("send-whatsapp", {
+        body: {
+          campaignId: campaign.id,
+          recipients,
+          message: campaign.content,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: result.simulated ? "Campaign simulated" : "Campaign sent!",
+        description: result.simulated 
+          ? `Simulated sending to ${result.sentCount} recipients. Configure WhatsApp API for real sending.`
+          : `Successfully sent to ${result.sentCount} of ${result.totalRecipients} recipients.`,
+      });
+    } catch (error: any) {
+      console.error("Error sending campaign:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to send campaign",
+        description: error.message || "An error occurred while sending messages.",
+      });
+    } finally {
+      setSendingCampaignId(null);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title="WhatsApp Management"
-        description="Manage WhatsApp conversations and campaigns."
+        description="Send WhatsApp messages to your customers."
         icon={MessageCircle}
         action={{
           label: "New Campaign",
@@ -34,7 +99,7 @@ export default function WhatsApp() {
         }}
       />
 
-      <div className="grid gap-4 md:grid-cols-3 mb-6">
+      <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Campaigns</CardTitle>
@@ -55,11 +120,20 @@ export default function WhatsApp() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Active Campaigns</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Recipients Available</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {campaigns.filter(c => c.status === 'running').length}
+            <div className="text-2xl font-bold">{phoneableCustomers.length}</div>
+            <p className="text-xs text-muted-foreground">customers with phone</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-success">
+              {campaigns.filter(c => c.status === 'completed').length}
             </div>
           </CardContent>
         </Card>
@@ -84,7 +158,6 @@ export default function WhatsApp() {
                   <TableHead>Campaign</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Sent</TableHead>
-                  <TableHead>Scheduled</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -99,22 +172,35 @@ export default function WhatsApp() {
                       </Badge>
                     </TableCell>
                     <TableCell>{campaign.sent_count || 0}</TableCell>
-                    <TableCell>
-                      {campaign.scheduled_at 
-                        ? formatDistanceToNow(new Date(campaign.scheduled_at), { addSuffix: true })
-                        : '-'}
-                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {formatDistanceToNow(new Date(campaign.created_at), { addSuffix: true })}
                     </TableCell>
                     <TableCell>
-                      <Button 
-                        size="sm" 
-                        variant="destructive" 
-                        onClick={() => deleteCampaign.mutate(campaign.id)}
-                      >
-                        Delete
-                      </Button>
+                      <div className="flex gap-2">
+                        {campaign.status === "draft" && (
+                          <Button 
+                            size="sm" 
+                            onClick={() => handleSendCampaign(campaign)}
+                            disabled={sendingCampaignId === campaign.id}
+                          >
+                            {sendingCampaignId === campaign.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4 mr-1" />
+                                Send
+                              </>
+                            )}
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => deleteCampaign.mutate(campaign.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -125,7 +211,7 @@ export default function WhatsApp() {
               <MessageCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No WhatsApp campaigns yet.</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Connect your WhatsApp Business API to start sending campaigns.
+                Create a campaign and add customers with phone numbers to get started.
               </p>
               <Button className="mt-4" onClick={() => setShowDialog(true)}>
                 <Plus className="h-4 w-4 mr-2" />

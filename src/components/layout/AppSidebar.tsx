@@ -77,21 +77,26 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 </CollapsibleTrigger>
               )}
               <CollapsibleContent className="space-y-1">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.url}
-                    to={item.url}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                      "text-sidebar-muted-foreground hover:bg-sidebar-muted hover:text-sidebar-foreground",
-                      collapsed && "justify-center px-2"
-                    )}
-                    activeClassName="bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
-                  >
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {!collapsed && <span>{item.title}</span>}
-                  </NavLink>
-                ))}
+                {group.items.map((item) => {
+                  // Add data-tour attribute based on item URL
+                  const tourId = item.url.replace("/", "");
+                  return (
+                    <NavLink
+                      key={item.url}
+                      to={item.url}
+                      data-tour={tourId}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "text-sidebar-muted-foreground hover:bg-sidebar-muted hover:text-sidebar-foreground",
+                        collapsed && "justify-center px-2"
+                      )}
+                      activeClassName="bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  );
+                })}
               </CollapsibleContent>
               {collapsed && (
                 <div className="space-y-1">

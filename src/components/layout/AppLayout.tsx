@@ -4,14 +4,26 @@ import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { AppSidebar as MobileSidebar } from "./AppSidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { CompanyOnboardingDialog, OnboardingTooltips } from "@/components/onboarding";
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { profile, roles, loading } = useAuth();
+
+  // Check if user needs company onboarding (not super_admin and no company)
+  const isSuperAdmin = roles.includes("super_admin");
+  const needsOnboarding = !loading && !isSuperAdmin && !profile?.company_id;
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Company Onboarding Dialog */}
+      <CompanyOnboardingDialog open={needsOnboarding} />
+
+      {/* Onboarding Tooltips for new company users */}
+      <OnboardingTooltips />
+
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <AppSidebar
