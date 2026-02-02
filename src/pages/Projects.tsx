@@ -1,7 +1,19 @@
-import { FolderKanban } from "lucide-react";
-import { PageHeader, PlaceholderContent } from "@/components/common";
+import { useState } from "react";
+import { FolderKanban, Plus, LayoutGrid, List } from "lucide-react";
+import { PageHeader } from "@/components/common";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useProjects, useTasks } from "@/hooks/useProjects";
+import { ProjectList } from "@/components/projects/ProjectList";
+import { ProjectDialog } from "@/components/projects/ProjectDialog";
+import { TaskBoard } from "@/components/projects/TaskBoard";
 
 export default function Projects() {
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState("projects");
+  const { projects, isLoading: projectsLoading } = useProjects();
+  const { tasks, isLoading: tasksLoading } = useTasks();
+
   return (
     <div>
       <PageHeader
@@ -10,13 +22,34 @@ export default function Projects() {
         icon={FolderKanban}
         action={{
           label: "New Project",
-          onClick: () => console.log("New project"),
+          onClick: () => setShowProjectDialog(true),
         }}
       />
-      <PlaceholderContent
-        title="Project Management Module Coming Soon"
-        description="This module will include project boards, Kanban views, task assignment, deadlines, and file sharing."
-        icon={FolderKanban}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="projects" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            Projects
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="flex items-center gap-2">
+            <List className="h-4 w-4" />
+            Task Board
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="projects">
+          <ProjectList projects={projects} isLoading={projectsLoading} />
+        </TabsContent>
+
+        <TabsContent value="tasks">
+          <TaskBoard tasks={tasks} isLoading={tasksLoading} projects={projects} />
+        </TabsContent>
+      </Tabs>
+
+      <ProjectDialog
+        open={showProjectDialog}
+        onOpenChange={setShowProjectDialog}
       />
     </div>
   );
