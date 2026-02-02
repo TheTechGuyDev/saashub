@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/common";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats, useRecentActivity } from "@/hooks/useAdminData";
+import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 
@@ -19,6 +20,9 @@ export default function Dashboard() {
   const { isSuperAdmin, profile } = useAuth();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: activities, isLoading: activitiesLoading } = useRecentActivity();
+
+  // Enable realtime updates
+  useRealtimeDashboard();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
