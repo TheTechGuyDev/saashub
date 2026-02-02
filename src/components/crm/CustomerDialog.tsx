@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useCustomers } from "@/hooks/useCustomers";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminData } from "@/hooks/useAdminData";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
@@ -45,9 +46,12 @@ interface CustomerDialogProps {
 }
 
 export function CustomerDialog({ open, onOpenChange, customer }: CustomerDialogProps) {
-  const { profile } = useAuth();
+  const { profile, isSuperAdmin } = useAuth();
   const { createCustomer, updateCustomer } = useCustomers();
+  const { companies } = useAdminData();
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
   const isEditing = !!customer;
+  const showCompanySelect = isSuperAdmin() && !isEditing;
 
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
@@ -87,6 +91,26 @@ export function CustomerDialog({ open, onOpenChange, customer }: CustomerDialogP
   }, [customer, form]);
 
   const onSubmit = async (data: CustomerFormData) => {
+    // For super admin, use selected company; for regular users, use their company_id
+    let companyId = profile?.company_id;
+    
+    if (isSuperAdmin()) {
+      if (isEditing && customer) {
+        companyId = customer.company_id; // Keep original company when editing
+      } else {
+        companyId = selectedCompanyId;
+        if (!companyId) {
+          form.setError("name", { message: "Please select a company first" });
+          return;
+        }
+      }
+    }
+    
+    if (!companyId) {
+      form.setError("name", { message: "Company ID is required" });
+      return;
+    }
+    
     const customerData = {
       name: data.name,
       email: data.email || null,
@@ -95,7 +119,7 @@ export function CustomerDialog({ open, onOpenChange, customer }: CustomerDialogP
       status: data.status as CustomerStatus,
       value: data.value ? parseFloat(data.value) : 0,
       notes: data.notes || null,
-      company_id: profile?.company_id ?? "",
+      company_id: companyId,
     };
 
     if (isEditing && customer) {
@@ -105,6 +129,7 @@ export function CustomerDialog({ open, onOpenChange, customer }: CustomerDialogP
     }
 
     onOpenChange(false);
+    setSelectedCompanyId("");
   };
 
   return (
@@ -116,6 +141,28 @@ export function CustomerDialog({ open, onOpenChange, customer }: CustomerDialogP
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Company selection for super admin */}
+            {showCompanySelect && (
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Select Company *</Label>
+                <Select
+                  value={selectedCompanyId}
+                  onValueChange={setSelectedCompanyId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose a company..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companies.map((company: any) => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="name">Name *</Label>
               <Input

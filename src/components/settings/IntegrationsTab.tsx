@@ -26,14 +26,14 @@ const integrations: Integration[] = [
     name: "WhatsApp Business",
     description: "Send WhatsApp messages to customers using the WhatsApp Business API.",
     icon: MessageCircle,
-    status: "coming_soon",
+    status: "connected",
   },
   {
     id: "twilio",
     name: "Twilio (Voice & SMS)",
     description: "Make and receive phone calls, send SMS messages using Twilio.",
     icon: Phone,
-    status: "coming_soon",
+    status: "not_connected",
   },
 ];
 
