@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Plus, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,9 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranches } from "@/hooks/useBranches";
+import { BranchDialog } from "@/components/branches/BranchDialog";
 
 export default function Branches() {
   const { branches, isLoading, deleteBranch } = useBranches();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<any>(null);
 
   return (
     <div>
