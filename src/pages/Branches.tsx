@@ -50,7 +50,7 @@ export default function Branches() {
                   <TableHead>Manager</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
