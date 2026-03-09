@@ -20,6 +20,13 @@ export default function Branches() {
         title="Branch Management"
         description="Manage company branches and locations."
         icon={Building2}
+        action={{
+          label: "Add Branch",
+          onClick: () => {
+            setSelectedBranch(null);
+            setDialogOpen(true);
+          },
+        }}
       />
 
       <Card>
