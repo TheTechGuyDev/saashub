@@ -7,12 +7,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useArticles, type Article } from "@/hooks/useArticles";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArticleCard, ArticleDetail, CategoryTabs, CATEGORIES } from "@/components/knowledge-base";
+import { ArticleCard, ArticleDetail, CategoryTabs } from "@/components/knowledge-base";
+import { ArticleDialog } from "@/components/knowledge-base/ArticleDialog";
 
 export default function KnowledgeBase() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { articles, isLoading } = useArticles();
   const { isSuperAdmin } = useAuth();
 
