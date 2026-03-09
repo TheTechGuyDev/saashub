@@ -1,226 +1,199 @@
 
 
-# Plan: Remove Placeholders & Add Real Functionality
+# Phase 3: Landing Website + WhatsApp Business Automation
 
-## Current Status Analysis
-
-After reviewing the codebase, I've identified several areas that still use placeholder/dummy data or have incomplete implementations:
-
-### 1. **Customer Acquisition Module** (High Priority)
-- Currently shows only basic stats
-- Has "coming soon" message for lead capture forms
-- Missing campaign tracking features
-
-### 2. **Newsletter Signup** (Landing Page)
-- Only displays a toast notification
-- Doesn't actually store email subscriptions
-- No database table for newsletter subscribers
-
-### 3. **Branch Management**
-- Missing create/edit dialog for branches
-- Can't add new branches through UI (delete only)
-
-### 4. **Knowledge Base**
-- Article creation marked as TODO
-- Super Admin can't create/edit articles through UI
-
-### 5. **Platform Integrations** (Settings)
-- Simulates saving API credentials
-- Doesn't actually persist to secrets or database
-- Connection status is hardcoded/simulated
-
-### 6. **Social Media Module**
-- Account connection placeholder
-- Post scheduling not implemented
-- Analytics dashboard missing
-
-### 7. **Call Centre**
-- Agent management incomplete
-- Live queue system needs implementation
-- No actual call routing logic
+This is a large scope. I'll break it into two workstreams implemented sequentially.
 
 ---
 
-## Proposed Implementation Plan
+## Workstream A: Marketing Landing Website
 
-### Phase 1: Data Persistence & Forms (Core Functionality)
+### Approach
+- Root `/` becomes the public landing page (instead of redirecting to `/dashboard`)
+- All marketing pages are public routes (no auth required)
+- `/auth` remains for login/signup
+- Existing protected app routes stay unchanged
 
-**1.1 Newsletter System**
-- Create `newsletter_subscribers` table
-- Add email validation & duplicate prevention
-- Build unsubscribe mechanism
-- Update NewsletterSignup component to persist data
+### New Pages to Create
 
-**1.2 Branch Management**
-- Create BranchDialog component (create/edit)
-- Add manager assignment dropdown
-- Implement full CRUD operations
+| Route | Page |
+|-------|------|
+| `/` | Home (hero, features, pricing, testimonials, CTA) |
+| `/features` | Feature highlights with detailed cards |
+| `/pricing` | 3-tier pricing (Starter, Growth, Pro) |
+| `/demo` | Product demo with video embed + CTA |
+| `/integrations` | Integration logos and descriptions |
+| `/testimonials` | Customer success stories |
+| `/blog` | Blog listing (static for now) |
+| `/docs` | Documentation / Help Center (links to Knowledge Base) |
+| `/faq` | FAQ accordion page |
+| `/about` | About Us with mission/team |
+| `/contact` | Contact form |
+| `/affiliates` | Affiliate program details |
+| `/terms` | Terms of Service |
+| `/privacy` | Privacy Policy |
 
-**1.3 Knowledge Base Articles**
-- Create ArticleDialog for Super Admin
-- Rich text editor for content
-- Category management
-- Publish/unpublish workflow
+### Shared Landing Components
+- `src/components/landing/Navbar.tsx` - Marketing nav with Login/Sign Up CTAs
+- `src/components/landing/Footer.tsx` - Legal links, newsletter signup
+- `src/components/landing/LandingLayout.tsx` - Wraps all public pages
+- `src/components/landing/HeroSection.tsx` - Gradient hero with CTA buttons
+- `src/components/landing/FeatureGrid.tsx` - Feature cards
+- `src/components/landing/PricingCards.tsx` - 3-tier pricing
+- `src/components/landing/TestimonialCarousel.tsx` - Customer quotes
+- `src/components/landing/IntegrationLogos.tsx` - Partner/integration icons
+- `src/components/landing/NewsletterSignup.tsx` - Email capture form
+- `src/components/landing/CTASection.tsx` - "Start Free Trial" / "Book Demo"
 
-**1.4 Platform Integrations (Real Implementation)**
-- Remove simulation, use actual secrets storage
-- Persist integration status in database
-- Add credential testing/validation
-- Update status badges to reflect real state
+### Home Page Sections
+1. Hero with "Start Free Trial" + "Book Demo" CTAs
+2. Product overview with screenshots
+3. Feature highlights (6 cards)
+4. AI automation benefits
+5. Integration logos (WhatsApp, Resend, Twilio, etc.)
+6. Customer testimonials
+7. Pricing plans preview
+8. Newsletter signup
+9. Footer
 
----
-
-### Phase 2: Customer Acquisition Features
-
-**2.1 Lead Capture Forms**
-- Create embeddable form builder
-- Generate unique form URLs
-- Store form submissions
-- Auto-create customers from submissions
-
-**2.2 Campaign Tracking**
-- UTM parameter tracking
-- Landing page analytics
-- Conversion funnel visualization
-- Source attribution (social, ads, organic)
-
-**2.3 Lead Scoring System**
-- Define scoring rules
-- Activity-based scoring
-- Auto-tag hot leads
-- Dashboard for high-value prospects
-
----
-
-### Phase 3: Communications Enhancement
-
-**3.1 Social Media Scheduler**
-- Connect Facebook/Instagram/Twitter/LinkedIn
-- Post composition with media upload
-- Schedule posts with calendar view
-- Analytics dashboard (reach, engagement)
-
-**3.2 Call Centre Implementation**
-- Agent assignment & status tracking
-- Call queue management (priority, wait time)
-- Real-time dashboard
-- Call disposition tracking
-
-**3.3 SMS Campaigns**
-- Twilio integration for SMS
-- Template management
-- Bulk sending with personalization
-- Delivery tracking
+### Router Changes
+- `/` renders `LandingHome` (public)
+- `/dashboard` remains the post-login landing
+- All marketing routes wrapped in `LandingLayout`
+- All app routes remain in `AppLayout` with `ProtectedRoute`
 
 ---
 
-### Phase 4: Advanced Analytics
+## Workstream B: WhatsApp Business Automation Module
 
-**4.1 Custom Reports Builder**
-- Drag-and-drop report designer
-- Chart type selection (bar, line, pie)
-- Date range filters
-- Export to PDF/Excel
+### Database Changes (Migration)
 
-**4.2 Dashboard Widgets**
-- Customizable widget layout
-- Real-time metric cards
-- Goal tracking vs. actuals
-- Comparison periods (MoM, YoY)
+New tables:
 
-**4.3 Predictive Analytics**
-- Revenue forecasting (AI-powered)
-- Churn prediction
-- Sales opportunity scoring
-- Trend analysis
+**`whatsapp_conversations`**
+- `id`, `company_id`, `customer_id`, `contact_name`, `contact_phone`, `status` (open/closed/archived), `assigned_to`, `tags` (text[]), `last_message_at`, `unread_count`, `created_at`
+
+**`whatsapp_messages`**
+- `id`, `conversation_id`, `company_id`, `direction` (inbound/outbound), `content`, `message_type` (text/image/catalog), `status` (sent/delivered/read/failed), `sent_at`, `created_at`
+
+**`whatsapp_templates`**
+- `id`, `company_id`, `name`, `content`, `category` (welcome/faq/product/order), `created_by`, `created_at`
+
+**`whatsapp_auto_rules`**
+- `id`, `company_id`, `trigger_keywords` (text[]), `response_template_id`, `is_active`, `created_at`
+
+**`product_catalog`**
+- `id`, `company_id`, `name`, `description`, `price`, `image_url`, `availability`, `category`, `created_at`
+
+**`whatsapp_orders`**
+- `id`, `company_id`, `conversation_id`, `customer_name`, `product_items` (jsonb), `delivery_location`, `payment_status`, `status`, `created_at`
+
+**`whatsapp_broadcasts`**
+- `id`, `company_id`, `name`, `message`, `target_tags` (text[]), `sent_count`, `delivered_count`, `read_count`, `reply_count`, `status`, `scheduled_at`, `created_at`
+
+RLS policies: company-scoped read for all users, staff+ can manage, super_admin can view all. Enable realtime on conversations and messages tables.
+
+### WhatsApp Page Redesign
+
+Replace current basic chat with a tabbed module:
+
+**Tabs:**
+1. **Inbox** - Conversation list + chat panel (existing but enhanced)
+2. **Broadcasts** - Campaign creation, audience targeting by tags, analytics
+3. **Auto-Replies** - Rule builder (keyword triggers → template responses)
+4. **Templates** - Quick reply template management
+5. **Product Catalog** - Upload/manage products
+6. **Orders** - Orders collected via WhatsApp
+7. **Analytics** - Messages received, response time, conversion rate, orders
+
+### Key Components
+- `src/components/whatsapp/ConversationInbox.tsx` - Main inbox with conversation list, contact panel, message history
+- `src/components/whatsapp/MessageComposer.tsx` - Message input with template insertion
+- `src/components/whatsapp/ConversationActions.tsx` - Reply, assign, tag, convert to lead, close
+- `src/components/whatsapp/BroadcastManager.tsx` - Create/schedule broadcasts with tag targeting
+- `src/components/whatsapp/AutoReplyRules.tsx` - Rule builder UI
+- `src/components/whatsapp/TemplateManager.tsx` - CRUD for templates
+- `src/components/whatsapp/ProductCatalogManager.tsx` - Product CRUD with images
+- `src/components/whatsapp/OrderList.tsx` - Orders from WhatsApp
+- `src/components/whatsapp/WhatsAppAnalytics.tsx` - Dashboard metrics
+- `src/components/whatsapp/ConnectWhatsApp.tsx` - Connection status + setup wizard
+
+### AI Auto-Reply Edge Function
+
+New edge function `supabase/functions/whatsapp-auto-reply/index.ts`:
+- Receives incoming message content
+- Checks auto-reply rules (keyword matching)
+- Falls back to AI (Lovable AI gateway) for intelligent responses
+- Supports configurable tone (friendly/professional/sales-focused)
+- Returns product catalog info when products are asked about
+
+### CRM Integration
+- New conversations auto-create CRM contacts if phone not found
+- Conversation history stored and linked to customer record
+- Tags sync between WhatsApp and CRM
+
+### Permissions
+- **Admin**: Full control (all tabs, settings, broadcasts)
+- **Staff**: Reply to conversations, manage assigned leads
+- **Super Admin**: Monitor across all organizations
 
 ---
 
-## Files to Create/Modify
+## Implementation Order
 
-### New Files (~15)
-```
-src/components/branches/BranchDialog.tsx
-src/components/knowledge-base/ArticleDialog.tsx
-src/components/acquisition/LeadCaptureFormBuilder.tsx
-src/components/acquisition/CampaignTracker.tsx
-src/components/acquisition/LeadScoringRules.tsx
-src/components/social/PostScheduler.tsx
-src/components/social/SocialAccountConnector.tsx
-src/components/social/SocialAnalytics.tsx
-src/components/call-centre/AgentManagement.tsx
-src/components/call-centre/CallQueue.tsx
-src/components/reports/ReportBuilder.tsx
-src/components/reports/CustomWidget.tsx
-src/hooks/useNewsletterSubscribers.ts
-src/hooks/useSocialMedia.ts
-src/hooks/useLeadCapture.ts
-```
+1. **Landing website** - Create all marketing pages + components + routing
+2. **WhatsApp DB migration** - Create all new tables with RLS
+3. **WhatsApp inbox redesign** - Conversation management with DB persistence
+4. **Auto-reply system** - Edge function + rule builder UI
+5. **Product catalog + orders** - CRUD + order collection flow
+6. **Broadcasts** - Campaign creation with tag targeting
+7. **Analytics dashboard** - WhatsApp-specific metrics
 
-### Modify Existing
-```
+---
+
+## Files to Create (~25 new files)
+
+```text
+src/components/landing/Navbar.tsx
+src/components/landing/Footer.tsx
+src/components/landing/LandingLayout.tsx
+src/components/landing/HeroSection.tsx
+src/components/landing/FeatureGrid.tsx
+src/components/landing/PricingCards.tsx
+src/components/landing/TestimonialCarousel.tsx
+src/components/landing/IntegrationLogos.tsx
 src/components/landing/NewsletterSignup.tsx
-src/components/settings/IntegrationsTab.tsx
-src/pages/CustomerAcquisition.tsx
-src/pages/SocialMedia.tsx
-src/pages/CallCentre.tsx
-src/pages/KnowledgeBase.tsx
-src/pages/Branches.tsx
-src/pages/Analytics.tsx
+src/components/landing/CTASection.tsx
+src/pages/landing/LandingHome.tsx
+src/pages/landing/Features.tsx
+src/pages/landing/Pricing.tsx
+src/pages/landing/Demo.tsx
+src/pages/landing/Integrations.tsx
+src/pages/landing/Testimonials.tsx
+src/pages/landing/Blog.tsx
+src/pages/landing/Docs.tsx
+src/pages/landing/FAQ.tsx
+src/pages/landing/About.tsx
+src/pages/landing/Contact.tsx
+src/pages/landing/Affiliates.tsx
+src/pages/landing/Terms.tsx
+src/pages/landing/Privacy.tsx
+src/components/whatsapp/ConversationInbox.tsx
+src/components/whatsapp/BroadcastManager.tsx
+src/components/whatsapp/AutoReplyRules.tsx
+src/components/whatsapp/TemplateManager.tsx
+src/components/whatsapp/ProductCatalogManager.tsx
+src/components/whatsapp/OrderList.tsx
+src/components/whatsapp/WhatsAppAnalytics.tsx
+src/components/whatsapp/ConnectWhatsApp.tsx
+src/hooks/useWhatsApp.ts
+supabase/functions/whatsapp-auto-reply/index.ts
 ```
 
-### Database Migrations
+## Files to Modify
+```text
+src/App.tsx - Add all public landing routes + WhatsApp sub-routes
+src/pages/WhatsApp.tsx - Complete rebuild with tabbed module
+src/hooks/useCustomers.ts - Auto-create from WhatsApp contacts
 ```
-newsletter_subscribers (email, source, subscribed_at, unsubscribed_at)
-lead_capture_forms (name, fields, settings, embed_code)
-form_submissions (form_id, data, source, created_at)
-lead_scores (customer_id, score, last_updated)
-social_accounts (platform, access_token, profile_data)
-social_posts (account_id, content, scheduled_for, status)
-campaign_tracking (campaign_name, utm_params, conversions)
-call_agents (employee_id, status, extension)
-call_queues (name, priority, max_wait_time)
-```
-
----
-
-## Implementation Order (Recommended)
-
-1. **Newsletter & Branch Dialogs** (Quick wins, 1-2 hours)
-2. **Knowledge Base Article Management** (Super Admin content, 2-3 hours)
-3. **Platform Integrations Fix** (Real secrets, 2-3 hours)
-4. **Lead Capture Forms** (Customer acquisition core, 4-5 hours)
-5. **Social Media Scheduler** (Marketing automation, 5-6 hours)
-6. **Call Centre Enhancement** (Agent + queue management, 4-5 hours)
-7. **Advanced Analytics** (Reporting & insights, 6-8 hours)
-
-**Total Estimated Time:** 24-32 hours of development
-
----
-
-## Key Technical Decisions
-
-1. **Newsletter Storage**: Create dedicated table vs. using existing customers table → **Dedicated table** (cleaner separation, GDPR compliance)
-
-2. **Lead Forms**: Static forms vs. dynamic form builder → **Dynamic builder** (more flexible, reusable)
-
-3. **Social Media**: Direct API vs. aggregator (Zapier/Buffer) → **Direct API** (better control, no 3rd party fees)
-
-4. **Analytics**: Real-time vs. batch processing → **Hybrid** (real-time for dashboards, batch for reports)
-
-5. **Secrets Management**: Use Lovable secrets tool vs. database encryption → **Lovable secrets** (already available, secure by default)
-
----
-
-## What Gets Fixed
-
-✅ All "coming soon" messages replaced with working features  
-✅ Newsletter actually stores subscribers  
-✅ Branch management has full CRUD  
-✅ Knowledge Base articles manageable by Super Admin  
-✅ Platform integrations use real credentials  
-✅ Customer acquisition has lead capture & tracking  
-✅ Social media scheduling & analytics functional  
-✅ Call centre has agent & queue management  
-✅ Analytics module has custom reports  
 

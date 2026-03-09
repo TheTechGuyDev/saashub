@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Plus, Pencil } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,9 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranches } from "@/hooks/useBranches";
+import { BranchDialog } from "@/components/branches/BranchDialog";
 
 export default function Branches() {
   const { branches, isLoading, deleteBranch } = useBranches();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<any>(null);
 
   return (
     <div>
@@ -17,6 +20,13 @@ export default function Branches() {
         title="Branch Management"
         description="Manage company branches and locations."
         icon={Building2}
+        action={{
+          label: "Add Branch",
+          onClick: () => {
+            setSelectedBranch(null);
+            setDialogOpen(true);
+          },
+        }}
       />
 
       <Card>
@@ -40,7 +50,7 @@ export default function Branches() {
                   <TableHead>Manager</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -57,10 +67,27 @@ export default function Branches() {
                         <Badge variant="outline">Branch</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="destructive" onClick={() => deleteBranch.mutate(branch.id)}>
-                        Delete
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedBranch(branch);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => deleteBranch.mutate(branch.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -74,6 +101,12 @@ export default function Branches() {
           )}
         </CardContent>
       </Card>
+
+      <BranchDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        branch={selectedBranch}
+      />
     </div>
   );
 }
