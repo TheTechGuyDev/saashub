@@ -277,7 +277,9 @@ export function IntegrationsTab() {
             ))}
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setConfiguring(null)}>Cancel</Button>
-              <Button onClick={handleSaveConfig}>Save Configuration</Button>
+              <Button onClick={handleSaveConfig} disabled={saveConfigMutation.isPending}>
+                {saveConfigMutation.isPending ? "Saving..." : "Save Configuration"}
+              </Button>
             </div>
           </div>
         </DialogContent>
