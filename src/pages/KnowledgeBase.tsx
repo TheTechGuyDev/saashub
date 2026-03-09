@@ -67,7 +67,7 @@ export default function KnowledgeBase() {
         icon={BookOpen}
         action={isSuperAdmin() ? {
           label: "Add Article",
-          onClick: () => {/* TODO: Open article creation modal */},
+          onClick: () => setDialogOpen(true),
         } : undefined}
       />
 
