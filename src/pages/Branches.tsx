@@ -101,6 +101,12 @@ export default function Branches() {
           )}
         </CardContent>
       </Card>
+
+      <BranchDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        branch={selectedBranch}
+      />
     </div>
   );
 }

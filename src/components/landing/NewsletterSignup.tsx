@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
+import { useNewsletterSubscribers } from "@/hooks/useNewsletterSubscribers";
 
 export function NewsletterSignup() {
   const [email, setEmail] = useState("");
-  const { toast } = useToast();
+  const { subscribe } = useNewsletterSubscribers();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Subscribed!", description: "You'll receive our latest updates." });
+    if (!email) return;
+    
+    await subscribe.mutateAsync({ email, source: "landing_page" });
     setEmail("");
   };
 

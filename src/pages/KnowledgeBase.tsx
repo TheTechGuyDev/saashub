@@ -140,6 +140,12 @@ export default function KnowledgeBase() {
           </CardContent>
         </Card>
       )}
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        isPlatformArticle={isSuperAdmin()}
+      />
     </div>
   );
 }
