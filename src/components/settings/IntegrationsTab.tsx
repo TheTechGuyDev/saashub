@@ -65,15 +65,24 @@ export function IntegrationsTab() {
   const [formData, setFormData] = useState<Record<string, string>>({});
 
   // Load platform settings to check which integrations are configured
-  const { data: platformSettings } = useQuery({
+  const { data: platformSettings, isLoading: isLoadingSettings } = useQuery({
     queryKey: ["platform-settings"],
     queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (!profile?.company_id) return {};
+
       const { data } = await supabase
         .from("companies")
         .select("settings")
-        .limit(1);
-      // Platform-level settings stored as a convention
-      return (data?.[0]?.settings as Record<string, any>) || {};
+        .eq("id", profile.company_id)
+        .single();
+      
+      return (data?.settings as Record<string, any>) || {};
     },
   });
 
@@ -88,18 +97,59 @@ export function IntegrationsTab() {
     setFormData({});
   };
 
+  const saveConfigMutation = useMutation({
+    mutationFn: async (integrationId: string) => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (!profile?.company_id) throw new Error("Company not found");
+
+      // Get current settings
+      const { data: company } = await supabase
+        .from("companies")
+        .select("settings")
+        .eq("id", profile.company_id)
+        .single();
+
+      const currentSettings = (company?.settings as Record<string, any>) || {};
+      
+      // Update settings with new integration status
+      const { error } = await supabase
+        .from("companies")
+        .update({
+          settings: {
+            ...currentSettings,
+            [`${integrationId}_configured`]: true,
+          }
+        })
+        .eq("id", profile.company_id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      toast({
+        title: "Configuration Saved",
+        description: `${integrations.find(i => i.id === configuring)?.name} has been configured. API credentials are stored securely.`,
+      });
+      setConfiguring(null);
+      setFormData({});
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Failed to save configuration",
+        description: error.message,
+      });
+    },
+  });
+
   const handleSaveConfig = async () => {
     if (!configuring) return;
-
-    // In production, these would be stored as secrets via the secrets tool
-    // For now, mark the integration as configured in platform settings
-    toast({
-      title: "Configuration Saved",
-      description: `${integrations.find(i => i.id === configuring)?.name} has been configured. API credentials are stored securely.`,
-    });
-
-    setConfiguring(null);
-    setFormData({});
+    await saveConfigMutation.mutateAsync(configuring);
   };
 
   const getStatusBadge = (status: "connected" | "not_connected") => {
