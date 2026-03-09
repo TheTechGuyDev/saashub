@@ -67,10 +67,27 @@ export default function Branches() {
                         <Badge variant="outline">Branch</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="destructive" onClick={() => deleteBranch.mutate(branch.id)}>
-                        Delete
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedBranch(branch);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive" 
+                          onClick={() => deleteBranch.mutate(branch.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
