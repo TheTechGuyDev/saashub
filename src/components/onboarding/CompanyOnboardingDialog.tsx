@@ -24,9 +24,10 @@ type CompanyFormData = z.infer<typeof companySchema>;
 interface CompanyOnboardingDialogProps {
   open: boolean;
   onComplete?: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function CompanyOnboardingDialog({ open, onComplete }: CompanyOnboardingDialogProps) {
+export function CompanyOnboardingDialog({ open, onComplete, onOpenChange }: CompanyOnboardingDialogProps) {
   const { createCompany, isLoading } = useCompanyOnboarding();
   const [step, setStep] = useState(1);
 
@@ -60,7 +61,7 @@ export function CompanyOnboardingDialog({ open, onComplete }: CompanyOnboardingD
   // If auto-creating, show loading
   if (pendingCompanyName && isLoading) {
     return (
-      <Dialog open={open}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-lg" hideCloseButton>
           <DialogHeader className="text-center">
             <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mb-4">
@@ -77,8 +78,8 @@ export function CompanyOnboardingDialog({ open, onComplete }: CompanyOnboardingD
   }
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="sm:max-w-lg" hideCloseButton>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader className="text-center">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mb-4">
             {step === 1 ? (
