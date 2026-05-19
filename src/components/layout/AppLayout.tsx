@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { AppHeader } from "./AppHeader";
@@ -15,11 +15,20 @@ export function AppLayout() {
   // Check if user needs company onboarding (not super_admin and no company)
   const isSuperAdmin = roles.includes("super_admin");
   const needsOnboarding = !loading && !isSuperAdmin && !profile?.company_id;
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  // Auto-open when user needs onboarding; allow dismiss + manual reopen
+  useEffect(() => {
+    if (needsOnboarding) setOnboardingOpen(true);
+  }, [needsOnboarding]);
 
   return (
     <div className="min-h-screen bg-background">
       {/* Company Onboarding Dialog */}
-      <CompanyOnboardingDialog open={needsOnboarding} />
+      <CompanyOnboardingDialog
+        open={onboardingOpen && needsOnboarding}
+        onOpenChange={setOnboardingOpen}
+      />
 
       {/* Onboarding Tooltips for new company users */}
       <OnboardingTooltips />
@@ -56,7 +65,7 @@ export function AppLayout() {
         )}
       >
         <div className="p-6">
-          <Outlet />
+          <Outlet context={{ needsOnboarding, openOnboarding: () => setOnboardingOpen(true) }} />
         </div>
       </main>
     </div>

@@ -7,8 +7,11 @@ import {
   Ticket,
   FolderKanban,
   Clock,
+  Rocket,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useOutletContext } from "react-router-dom";
 import { PageHeader } from "@/components/common";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats, useRecentActivity } from "@/hooks/useAdminData";
@@ -20,6 +23,7 @@ export default function Dashboard() {
   const { isSuperAdmin, profile } = useAuth();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: activities, isLoading: activitiesLoading } = useRecentActivity();
+  const ctx = useOutletContext<{ needsOnboarding?: boolean; openOnboarding?: () => void } | null>();
 
   // Enable realtime updates
   useRealtimeDashboard();
@@ -93,6 +97,28 @@ export default function Dashboard() {
           : `Welcome back${profile?.full_name ? `, ${profile.full_name}` : ''}! Here's an overview of your business.`}
         icon={LayoutDashboard}
       />
+
+      {ctx?.needsOnboarding && (
+        <Card className="mb-6 border-primary/40 bg-gradient-to-br from-primary/5 to-accent/5">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Rocket className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">Finish setting up your company</p>
+                <p className="text-sm text-muted-foreground">
+                  Create your company profile to unlock the full dashboard and invite your team.
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => ctx.openOnboarding?.()}>
+              <Building2 className="h-4 w-4 mr-2" />
+              Setup your company
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
