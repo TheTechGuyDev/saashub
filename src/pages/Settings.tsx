@@ -10,10 +10,12 @@ import { SystemTab } from "@/components/settings/SystemTab";
 import { IntegrationsTab } from "@/components/settings/IntegrationsTab";
 
 export default function Settings() {
-  const { isSuperAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState("companies");
+  const { isSuperAdmin, hasRole } = useAuth();
+  const superAdmin = isSuperAdmin();
+  const companyAdmin = hasRole ? hasRole("company_admin") : false;
+  const [activeTab, setActiveTab] = useState(superAdmin ? "companies" : "users");
 
-  if (!isSuperAdmin()) {
+  if (!superAdmin && !companyAdmin) {
     return (
       <div>
         <PageHeader
@@ -28,17 +30,23 @@ export default function Settings() {
   return (
     <div>
       <PageHeader
-        title="Super Admin Settings"
-        description="Manage all companies, users, and platform settings."
+        title={superAdmin ? "Super Admin Settings" : "Company Settings"}
+        description={
+          superAdmin
+            ? "Manage all companies, users, and platform settings."
+            : "Manage your team, integrations, and company settings."
+        }
         icon={SettingsIcon}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 max-w-3xl">
-          <TabsTrigger value="companies" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Companies</span>
-          </TabsTrigger>
+        <TabsList className={`grid w-full max-w-3xl ${superAdmin ? "grid-cols-5" : "grid-cols-4"}`}>
+          {superAdmin && (
+            <TabsTrigger value="companies" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Companies</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Users</span>
@@ -57,9 +65,11 @@ export default function Settings() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="companies">
-          <CompaniesTab />
-        </TabsContent>
+        {superAdmin && (
+          <TabsContent value="companies">
+            <CompaniesTab />
+          </TabsContent>
+        )}
 
         <TabsContent value="users">
           <UsersTab />
