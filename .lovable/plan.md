@@ -1,199 +1,107 @@
+# Plan: Staff Portal, Admin Oversight & Staff CRM
 
-
-# Phase 3: Landing Website + WhatsApp Business Automation
-
-This is a large scope. I'll break it into two workstreams implemented sequentially.
+This adds a complete staff/employee experience plus a company-admin overview of all staff, with credentials, role-based dashboards, and CRM access for staff.
 
 ---
 
-## Workstream A: Marketing Landing Website
+## 1. Staff Account Provisioning (with login)
 
-### Approach
-- Root `/` becomes the public landing page (instead of redirecting to `/dashboard`)
-- All marketing pages are public routes (no auth required)
-- `/auth` remains for login/signup
-- Existing protected app routes stay unchanged
+When a company admin adds an employee:
+- Use a new **edge function** `create-staff-account` (uses `SUPABASE_SERVICE_ROLE_KEY`) to:
+  - Create an `auth.users` record with admin-provided email + temporary password
+  - Auto-confirm email
+  - Create matching `profiles` row (with `company_id`, `full_name`, `phone`, `department`, `job_title`)
+  - Create `employees` row linked via `user_id`
+  - Assign role in `user_roles` (default `staff`, optional `company_admin` / `user`)
+- `EmployeeDialog` gets new fields: **Email**, **Temporary Password**, **Role** (Staff / Manager / HR / Admin / User)
+- After creation, show a toast with the credentials so admin can share them
+- Staff logs in normally at `/auth` → lands on `/dashboard` with staff-specific view
 
-### New Pages to Create
+## 2. Staff (Member) Dashboard
 
-| Route | Page |
-|-------|------|
-| `/` | Home (hero, features, pricing, testimonials, CTA) |
-| `/features` | Feature highlights with detailed cards |
-| `/pricing` | 3-tier pricing (Starter, Growth, Pro) |
-| `/demo` | Product demo with video embed + CTA |
-| `/integrations` | Integration logos and descriptions |
-| `/testimonials` | Customer success stories |
-| `/blog` | Blog listing (static for now) |
-| `/docs` | Documentation / Help Center (links to Knowledge Base) |
-| `/faq` | FAQ accordion page |
-| `/about` | About Us with mission/team |
-| `/contact` | Contact form |
-| `/affiliates` | Affiliate program details |
-| `/terms` | Terms of Service |
-| `/privacy` | Privacy Policy |
+Update `src/pages/Dashboard.tsx` to render a **staff-specific layout** when the user has `staff` role and is NOT an admin:
 
-### Shared Landing Components
-- `src/components/landing/Navbar.tsx` - Marketing nav with Login/Sign Up CTAs
-- `src/components/landing/Footer.tsx` - Legal links, newsletter signup
-- `src/components/landing/LandingLayout.tsx` - Wraps all public pages
-- `src/components/landing/HeroSection.tsx` - Gradient hero with CTA buttons
-- `src/components/landing/FeatureGrid.tsx` - Feature cards
-- `src/components/landing/PricingCards.tsx` - 3-tier pricing
-- `src/components/landing/TestimonialCarousel.tsx` - Customer quotes
-- `src/components/landing/IntegrationLogos.tsx` - Partner/integration icons
-- `src/components/landing/NewsletterSignup.tsx` - Email capture form
-- `src/components/landing/CTASection.tsx` - "Start Free Trial" / "Book Demo"
+- **My Tasks** card — tasks assigned to them (`tasks.assigned_to = profile.id`), grouped by status
+- **My Attendance** — today's clock-in/out status with quick Clock In / Clock Out buttons
+- **My Leave Requests** — recent requests + "Request Leave" button
+- **My Customers** — CRM records assigned to them (`customers.assigned_to = profile.id`)
+- **Recent Activity** — last 10 of their `customer_activities`
+- **Announcements / Updates** — latest company `events` they're attending
 
-### Home Page Sections
-1. Hero with "Start Free Trial" + "Book Demo" CTAs
-2. Product overview with screenshots
-3. Feature highlights (6 cards)
-4. AI automation benefits
-5. Integration logos (WhatsApp, Resend, Twilio, etc.)
-6. Customer testimonials
-7. Pricing plans preview
-8. Newsletter signup
-9. Footer
+Admins and Super Admins continue to see the current admin dashboard.
 
-### Router Changes
-- `/` renders `LandingHome` (public)
-- `/dashboard` remains the post-login landing
-- All marketing routes wrapped in `LandingLayout`
-- All app routes remain in `AppLayout` with `ProtectedRoute`
+## 3. Staff Activities & Activity Log
 
----
+New table **`staff_activities`** to log everything a staff member does:
+- columns: `id`, `company_id`, `user_id`, `employee_id`, `activity_type` (login, task_update, customer_update, call_log, clock_in, clock_out, etc.), `entity_type`, `entity_id`, `description`, `metadata` jsonb, `created_at`
+- RLS: staff see their own; admins see all company activities
+- Auto-logged from hooks (task updates, customer updates, clock-in/out, call logs)
 
-## Workstream B: WhatsApp Business Automation Module
+New page **`/staff-logs`** (admin only) showing:
+- Filterable table of all staff activities (by employee, date range, type)
+- Per-staff timeline view
+- Export to CSV
 
-### Database Changes (Migration)
+Staff see their own log on their dashboard under "My Activity".
 
-New tables:
+## 4. Admin Staff Overview
 
-**`whatsapp_conversations`**
-- `id`, `company_id`, `customer_id`, `contact_name`, `contact_phone`, `status` (open/closed/archived), `assigned_to`, `tags` (text[]), `last_message_at`, `unread_count`, `created_at`
+Enhance `/staff` page (already exists) with a new **"Overview"** tab visible to admins:
+- Grid of staff cards showing: avatar, name, role badge (Manager / HR / Staff), department, status (online/clocked-in indicator), open tasks count, today's attendance, assigned customers count
+- Click a card → drill-down side panel with full activity timeline, assigned tasks, attendance history, leave history
+- Filters: role, department, status
 
-**`whatsapp_messages`**
-- `id`, `conversation_id`, `company_id`, `direction` (inbound/outbound), `content`, `message_type` (text/image/catalog), `status` (sent/delivered/read/failed), `sent_at`, `created_at`
+Add **Role column** to existing `EmployeeList` table.
 
-**`whatsapp_templates`**
-- `id`, `company_id`, `name`, `content`, `category` (welcome/faq/product/order), `created_by`, `created_at`
+## 5. Staff CRM Access
 
-**`whatsapp_auto_rules`**
-- `id`, `company_id`, `trigger_keywords` (text[]), `response_template_id`, `is_active`, `created_at`
+CRM is already multi-tenant. Add staff-friendly improvements:
+- **"My Customers"** filter toggle on `/crm` page (filters `assigned_to = profile.id`)
+- Assignment dropdown when creating/editing a customer (admin can assign to any staff; staff can self-assign)
+- Staff can log calls, add activities, update status — RLS already allows this
 
-**`product_catalog`**
-- `id`, `company_id`, `name`, `description`, `price`, `image_url`, `availability`, `category`, `created_at`
+## 6. Navigation Updates
 
-**`whatsapp_orders`**
-- `id`, `company_id`, `conversation_id`, `customer_name`, `product_items` (jsonb), `delivery_location`, `payment_status`, `status`, `created_at`
-
-**`whatsapp_broadcasts`**
-- `id`, `company_id`, `name`, `message`, `target_tags` (text[]), `sent_count`, `delivered_count`, `read_count`, `reply_count`, `status`, `scheduled_at`, `created_at`
-
-RLS policies: company-scoped read for all users, staff+ can manage, super_admin can view all. Enable realtime on conversations and messages tables.
-
-### WhatsApp Page Redesign
-
-Replace current basic chat with a tabbed module:
-
-**Tabs:**
-1. **Inbox** - Conversation list + chat panel (existing but enhanced)
-2. **Broadcasts** - Campaign creation, audience targeting by tags, analytics
-3. **Auto-Replies** - Rule builder (keyword triggers → template responses)
-4. **Templates** - Quick reply template management
-5. **Product Catalog** - Upload/manage products
-6. **Orders** - Orders collected via WhatsApp
-7. **Analytics** - Messages received, response time, conversion rate, orders
-
-### Key Components
-- `src/components/whatsapp/ConversationInbox.tsx` - Main inbox with conversation list, contact panel, message history
-- `src/components/whatsapp/MessageComposer.tsx` - Message input with template insertion
-- `src/components/whatsapp/ConversationActions.tsx` - Reply, assign, tag, convert to lead, close
-- `src/components/whatsapp/BroadcastManager.tsx` - Create/schedule broadcasts with tag targeting
-- `src/components/whatsapp/AutoReplyRules.tsx` - Rule builder UI
-- `src/components/whatsapp/TemplateManager.tsx` - CRUD for templates
-- `src/components/whatsapp/ProductCatalogManager.tsx` - Product CRUD with images
-- `src/components/whatsapp/OrderList.tsx` - Orders from WhatsApp
-- `src/components/whatsapp/WhatsAppAnalytics.tsx` - Dashboard metrics
-- `src/components/whatsapp/ConnectWhatsApp.tsx` - Connection status + setup wizard
-
-### AI Auto-Reply Edge Function
-
-New edge function `supabase/functions/whatsapp-auto-reply/index.ts`:
-- Receives incoming message content
-- Checks auto-reply rules (keyword matching)
-- Falls back to AI (Lovable AI gateway) for intelligent responses
-- Supports configurable tone (friendly/professional/sales-focused)
-- Returns product catalog info when products are asked about
-
-### CRM Integration
-- New conversations auto-create CRM contacts if phone not found
-- Conversation history stored and linked to customer record
-- Tags sync between WhatsApp and CRM
-
-### Permissions
-- **Admin**: Full control (all tabs, settings, broadcasts)
-- **Staff**: Reply to conversations, manage assigned leads
-- **Super Admin**: Monitor across all organizations
+In `src/config/navigation.ts`:
+- Add **"Staff Logs"** entry (admin only)
+- Reorder so staff see relevant items first (Dashboard, Tasks, CRM, Calendar, Attendance)
+- Hide admin-only items (Settings, Companies, Analytics) from plain staff
 
 ---
 
-## Implementation Order
+## Technical Summary
 
-1. **Landing website** - Create all marketing pages + components + routing
-2. **WhatsApp DB migration** - Create all new tables with RLS
-3. **WhatsApp inbox redesign** - Conversation management with DB persistence
-4. **Auto-reply system** - Edge function + rule builder UI
-5. **Product catalog + orders** - CRUD + order collection flow
-6. **Broadcasts** - Campaign creation with tag targeting
-7. **Analytics dashboard** - WhatsApp-specific metrics
+**New files:**
+- `supabase/functions/create-staff-account/index.ts`
+- `src/pages/StaffLogs.tsx`
+- `src/components/dashboard/StaffDashboard.tsx`
+- `src/components/dashboard/AdminDashboard.tsx` (extracted from current Dashboard)
+- `src/components/staff/StaffOverviewGrid.tsx`
+- `src/components/staff/StaffDetailPanel.tsx`
+- `src/hooks/useStaffActivities.ts`
+
+**Migrations:**
+- Create `staff_activities` table + RLS
+- Add `role` column reference / helper view for staff roster
+
+**Modified files:**
+- `src/pages/Dashboard.tsx` — split into Admin vs Staff view
+- `src/pages/StaffManagement.tsx` — add Overview tab
+- `src/components/staff/EmployeeDialog.tsx` — credentials + role fields, call edge function
+- `src/pages/CRM.tsx` — "My Customers" filter
+- `src/config/navigation.ts` — role-based filtering
+- `src/App.tsx` — register `/staff-logs` route
+
+**Security:**
+- All RLS policies enforce `company_id` isolation
+- Edge function uses service-role key, validates caller is `company_admin` of the target company before creating accounts
+- Passwords set by admin; staff prompted to change on first login (optional later)
 
 ---
 
-## Files to Create (~25 new files)
+## Out of scope (for now)
+- Performance reviews / KPI scoring
+- Payroll
+- Force-password-change-on-first-login (can add later)
 
-```text
-src/components/landing/Navbar.tsx
-src/components/landing/Footer.tsx
-src/components/landing/LandingLayout.tsx
-src/components/landing/HeroSection.tsx
-src/components/landing/FeatureGrid.tsx
-src/components/landing/PricingCards.tsx
-src/components/landing/TestimonialCarousel.tsx
-src/components/landing/IntegrationLogos.tsx
-src/components/landing/NewsletterSignup.tsx
-src/components/landing/CTASection.tsx
-src/pages/landing/LandingHome.tsx
-src/pages/landing/Features.tsx
-src/pages/landing/Pricing.tsx
-src/pages/landing/Demo.tsx
-src/pages/landing/Integrations.tsx
-src/pages/landing/Testimonials.tsx
-src/pages/landing/Blog.tsx
-src/pages/landing/Docs.tsx
-src/pages/landing/FAQ.tsx
-src/pages/landing/About.tsx
-src/pages/landing/Contact.tsx
-src/pages/landing/Affiliates.tsx
-src/pages/landing/Terms.tsx
-src/pages/landing/Privacy.tsx
-src/components/whatsapp/ConversationInbox.tsx
-src/components/whatsapp/BroadcastManager.tsx
-src/components/whatsapp/AutoReplyRules.tsx
-src/components/whatsapp/TemplateManager.tsx
-src/components/whatsapp/ProductCatalogManager.tsx
-src/components/whatsapp/OrderList.tsx
-src/components/whatsapp/WhatsAppAnalytics.tsx
-src/components/whatsapp/ConnectWhatsApp.tsx
-src/hooks/useWhatsApp.ts
-supabase/functions/whatsapp-auto-reply/index.ts
-```
-
-## Files to Modify
-```text
-src/App.tsx - Add all public landing routes + WhatsApp sub-routes
-src/pages/WhatsApp.tsx - Complete rebuild with tabbed module
-src/hooks/useCustomers.ts - Auto-create from WhatsApp contacts
-```
-
+Approve to proceed.

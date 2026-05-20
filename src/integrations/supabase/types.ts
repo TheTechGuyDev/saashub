@@ -1056,6 +1056,45 @@ export type Database = {
           },
         ]
       }
+      staff_activities: {
+        Row: {
+          activity_type: string
+          company_id: string
+          created_at: string
+          description: string
+          employee_id: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          company_id: string
+          created_at?: string
+          description: string
+          employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          company_id?: string
+          created_at?: string
+          description?: string
+          employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           assigned_to: string | null
