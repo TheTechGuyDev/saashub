@@ -58,7 +58,7 @@ export default function StaffLogs() {
         format(new Date(a.created_at), "yyyy-MM-dd HH:mm:ss"),
         userMap.get(a.user_id) ?? a.user_id,
         a.activity_type,
-        a.description.replaceAll('"', '""'),
+        a.description.replace(/"/g, '""'),
       ]),
     ];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
