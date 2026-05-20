@@ -297,6 +297,44 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
             </div>
           </div>
 
+          {!isEditing && (
+            <div className="rounded-lg border border-dashed p-4 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Create login account (optional)</p>
+                <p className="text-xs text-muted-foreground">
+                  Provide a temporary password and role so this employee can sign in and access their own dashboard. Requires the Email field above.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Temporary Password</Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    placeholder="At least 6 characters"
+                    {...form.register("password")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={form.watch("role") ?? "staff"}
+                    onValueChange={(v) => form.setValue("role", v as "staff" | "company_admin" | "user")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="company_admin">Manager / Admin</SelectItem>
+                      <SelectItem value="user">User (limited)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
