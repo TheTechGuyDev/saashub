@@ -18,15 +18,18 @@ import { useDashboardStats, useRecentActivity } from "@/hooks/useAdminData";
 import { useRealtimeDashboard } from "@/hooks/useRealtimeDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
+import { StaffDashboard } from "@/components/dashboard/StaffDashboard";
 
 export default function Dashboard() {
-  const { isSuperAdmin, profile } = useAuth();
+  const { isSuperAdmin, isAdmin, profile } = useAuth();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: activities, isLoading: activitiesLoading } = useRecentActivity();
   const ctx = useOutletContext<{ needsOnboarding?: boolean; openOnboarding?: () => void } | null>();
 
   // Enable realtime updates
   useRealtimeDashboard();
+
+  const showStaffView = !isAdmin() && !isSuperAdmin();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -91,12 +94,17 @@ export default function Dashboard() {
   return (
     <div>
       <PageHeader
-        title={isSuperAdmin() ? "Super Admin Dashboard" : "Dashboard"}
+        title={isSuperAdmin() ? "Super Admin Dashboard" : showStaffView ? "My Workspace" : "Dashboard"}
         description={isSuperAdmin() 
           ? "Manage all companies and users across the platform." 
-          : `Welcome back${profile?.full_name ? `, ${profile.full_name}` : ''}! Here's an overview of your business.`}
+          : `Welcome back${profile?.full_name ? `, ${profile.full_name}` : ''}! ${showStaffView ? "Here's your activity for today." : "Here's an overview of your business."}`}
         icon={LayoutDashboard}
       />
+
+      {showStaffView ? (
+        <StaffDashboard />
+      ) : (
+        <>
 
       {ctx?.needsOnboarding && (
         <Card className="mb-6 border-primary/40 bg-gradient-to-br from-primary/5 to-accent/5">
