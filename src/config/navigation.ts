@@ -18,6 +18,7 @@ import {
   Calendar,
   BookOpen,
   Settings,
+  Activity,
   LucideIcon,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ export interface NavItem {
   icon: LucideIcon;
   badge?: string;
   group: string;
+  adminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -49,6 +51,7 @@ export const navigationItems: NavItem[] = [
   
   // Operations
   { title: "Staff Management", url: "/staff", icon: UsersRound, group: "Operations" },
+  { title: "Staff Logs", url: "/staff-logs", icon: Activity, group: "Operations", adminOnly: true },
   { title: "Projects", url: "/projects", icon: FolderKanban, group: "Operations" },
   { title: "Branches", url: "/branches", icon: Building2, group: "Operations" },
   
@@ -66,13 +69,15 @@ export const navigationItems: NavItem[] = [
   { title: "Knowledge Base", url: "/knowledge-base", icon: BookOpen, group: "Resources" },
   
   // Admin
-  { title: "Settings", url: "/settings", icon: Settings, group: "Admin" },
+  { title: "Settings", url: "/settings", icon: Settings, group: "Admin", adminOnly: true },
 ];
 
-export const getGroupedNavigation = (): NavGroup[] => {
+export const getGroupedNavigation = (isAdmin = true): NavGroup[] => {
   const groups: { [key: string]: NavItem[] } = {};
-  
-  navigationItems.forEach((item) => {
+
+  navigationItems
+    .filter((item) => (item.adminOnly ? isAdmin : true))
+    .forEach((item) => {
     if (!groups[item.group]) {
       groups[item.group] = [];
     }
