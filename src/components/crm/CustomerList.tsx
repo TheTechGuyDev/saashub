@@ -36,6 +36,7 @@ interface CustomerListProps {
   onAddCustomer: () => void;
   onEditCustomer: (customer: Customer) => void;
   onViewCustomer: (customer: Customer) => void;
+  assignedToUserId?: string;
 }
 
 const statusColors: Record<CustomerStatus, string> = {
@@ -54,12 +55,13 @@ const statusLabels: Record<CustomerStatus, string> = {
   closed_lost: "Lost",
 };
 
-export function CustomerList({ onAddCustomer, onEditCustomer, onViewCustomer }: CustomerListProps) {
+export function CustomerList({ onAddCustomer, onEditCustomer, onViewCustomer, assignedToUserId }: CustomerListProps) {
   const { customers, isLoading, deleteCustomer } = useCustomers();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | "all">("all");
 
   const filteredCustomers = customers.filter((customer) => {
+    if (assignedToUserId && customer.assigned_to !== assignedToUserId) return false;
     const matchesSearch = 
       customer.name.toLowerCase().includes(search.toLowerCase()) ||
       customer.email?.toLowerCase().includes(search.toLowerCase()) ||
