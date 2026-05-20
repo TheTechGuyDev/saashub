@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/select";
 import { useEmployees } from "@/hooks/useEmployees";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 
 type Employee = Database["public"]["Tables"]["employees"]["Row"];
@@ -35,6 +38,8 @@ const employeeSchema = z.object({
   hire_date: z.string().optional(),
   status: z.enum(["active", "on_leave", "terminated"]),
   salary: z.string().optional(),
+  password: z.string().optional(),
+  role: z.enum(["staff", "company_admin", "user"]).optional(),
 });
 
 type EmployeeFormData = z.infer<typeof employeeSchema>;
@@ -61,6 +66,8 @@ const departments = [
 export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogProps) {
   const { profile } = useAuth();
   const { createEmployee, updateEmployee } = useEmployees();
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const isEditing = !!employee;
 
   const form = useForm<EmployeeFormData>({
@@ -107,7 +114,62 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
   }, [employee, form]);
 
   const onSubmit = async (data: EmployeeFormData) => {
-    const employeeData = {
+    if (isEditing && employee) {
+      await updateEmployee.mutateAsync({
+        id: employee.id,
+        full_name: data.full_name,
+        email: data.email || null,
+        phone: data.phone || null,
+        employee_number: data.employee_number || null,
+        department: data.department || null,
+        position: data.position || null,
+        hire_date: data.hire_date || null,
+        status: data.status as EmployeeStatus,
+        salary: data.salary ? parseFloat(data.salary) : null,
+        company_id: profile?.company_id ?? "",
+      });
+      onOpenChange(false);
+      return;
+    }
+
+    // Creating: if email + password provided, create login account via edge function
+    if (data.email && data.password) {
+      const { data: result, error } = await supabase.functions.invoke(
+        "create-staff-account",
+        {
+          body: {
+            email: data.email,
+            password: data.password,
+            full_name: data.full_name,
+            phone: data.phone || null,
+            department: data.department || null,
+            position: data.position || null,
+            employee_number: data.employee_number || null,
+            hire_date: data.hire_date || null,
+            salary: data.salary ? parseFloat(data.salary) : null,
+            role: data.role ?? "staff",
+          },
+        },
+      );
+      if (error || (result as any)?.error) {
+        toast({
+          variant: "destructive",
+          title: "Failed to create staff account",
+          description: (result as any)?.error ?? error?.message,
+        });
+        return;
+      }
+      toast({
+        title: "Staff account created",
+        description: `${data.full_name} can now sign in with ${data.email}`,
+      });
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      onOpenChange(false);
+      return;
+    }
+
+    // Fallback: create employee record only (no login)
+    await createEmployee.mutateAsync({
       full_name: data.full_name,
       email: data.email || null,
       phone: data.phone || null,
@@ -118,14 +180,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
       status: data.status as EmployeeStatus,
       salary: data.salary ? parseFloat(data.salary) : null,
       company_id: profile?.company_id ?? "",
-    };
-
-    if (isEditing && employee) {
-      await updateEmployee.mutateAsync({ id: employee.id, ...employeeData });
-    } else {
-      await createEmployee.mutateAsync(employeeData);
-    }
-
+    });
     onOpenChange(false);
   };
 
@@ -241,6 +296,44 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
               />
             </div>
           </div>
+
+          {!isEditing && (
+            <div className="rounded-lg border border-dashed p-4 space-y-4">
+              <div>
+                <p className="text-sm font-semibold">Create login account (optional)</p>
+                <p className="text-xs text-muted-foreground">
+                  Provide a temporary password and role so this employee can sign in and access their own dashboard. Requires the Email field above.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Temporary Password</Label>
+                  <Input
+                    id="password"
+                    type="text"
+                    placeholder="At least 6 characters"
+                    {...form.register("password")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select
+                    value={form.watch("role") ?? "staff"}
+                    onValueChange={(v) => form.setValue("role", v as "staff" | "company_admin" | "user")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Staff" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="staff">Staff</SelectItem>
+                      <SelectItem value="company_admin">Manager / Admin</SelectItem>
+                      <SelectItem value="user">User (limited)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

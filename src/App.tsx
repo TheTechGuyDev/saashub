@@ -44,6 +44,7 @@ import SocialMedia from "./pages/SocialMedia";
 import Documents from "./pages/Documents";
 import CalendarPage from "./pages/Calendar";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import StaffLogs from "./pages/StaffLogs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -93,6 +94,11 @@ const App = () => (
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/tickets" element={<SupportTickets />} />
               <Route path="/staff" element={<StaffManagement />} />
+              <Route path="/staff-logs" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <StaffLogs />
+                </ProtectedRoute>
+              } />
               <Route path="/projects" element={<Projects />} />
               <Route path="/branches" element={<Branches />} />
               <Route path="/finance" element={<Finance />} />

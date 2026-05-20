@@ -8,6 +8,7 @@ import { CustomerDialog } from "@/components/crm/CustomerDialog";
 import { SalesPipeline } from "@/components/crm/SalesPipeline";
 import { CustomerDetail } from "@/components/crm/CustomerDetail";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
@@ -17,6 +18,7 @@ export default function CRM() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const { customers } = useCustomers();
+  const { user } = useAuth();
 
   const stats = {
     total: customers.length,
@@ -124,11 +126,27 @@ export default function CRM() {
       <Tabs defaultValue="list" className="space-y-4">
         <TabsList>
           <TabsTrigger value="list">Customer List</TabsTrigger>
+          <TabsTrigger value="mine">My Customers</TabsTrigger>
           <TabsTrigger value="pipeline">Sales Pipeline</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
           <CustomerList
+            onAddCustomer={() => {
+              setSelectedCustomer(null);
+              setDialogOpen(true);
+            }}
+            onEditCustomer={(customer) => {
+              setSelectedCustomer(customer);
+              setDialogOpen(true);
+            }}
+            onViewCustomer={setViewingCustomer}
+          />
+        </TabsContent>
+
+        <TabsContent value="mine">
+          <CustomerList
+            assignedToUserId={user?.id}
             onAddCustomer={() => {
               setSelectedCustomer(null);
               setDialogOpen(true);

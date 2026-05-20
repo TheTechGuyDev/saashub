@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NavLink } from "@/components/NavLink";
 import { getGroupedNavigation } from "@/config/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Collapsible,
   CollapsibleContent,
@@ -19,7 +20,8 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
-  const groups = getGroupedNavigation();
+  const { isAdmin } = useAuth();
+  const groups = getGroupedNavigation(isAdmin());
   const [openGroups, setOpenGroups] = useState<string[]>(
     groups.map((g) => g.label)
   );
