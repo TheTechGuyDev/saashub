@@ -101,11 +101,6 @@ export default function Dashboard() {
         icon={LayoutDashboard}
       />
 
-      {showStaffView ? (
-        <StaffDashboard />
-      ) : (
-        <>
-
       {ctx?.needsOnboarding && (
         <Card className="mb-6 border-primary/40 bg-gradient-to-br from-primary/5 to-accent/5">
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-6">
@@ -128,6 +123,10 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {showStaffView ? (
+        <StaffDashboard />
+      ) : (
+        <>
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {superAdminStats.map((stat) => (
