@@ -134,8 +134,17 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
 
     // Creating: if email + password provided, create login account via edge function
     if (data.email && data.password) {
-      const targetCompanyId =
-        profile?.company_id ?? employees.find((e) => e.company_id)?.company_id ?? null;
+      // Use only the caller's company. Super admins without a company must
+      // assign themselves to a company before creating staff (no cross-tenant fallback).
+      const targetCompanyId = profile?.company_id ?? null;
+      if (!targetCompanyId) {
+        toast({
+          variant: "destructive",
+          title: "No company assigned",
+          description: "Set up or join a company before adding staff.",
+        });
+        return;
+      }
       const { data: result, error } = await supabase.functions.invoke(
         "create-staff-account",
         {
@@ -188,7 +197,15 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
     }
 
     // Fallback: create employee record only (no login)
-    await createEmployee.mutateAsync({
+      if (!profile?.company_id) {
+        toast({
+          variant: "destructive",
+          title: "No company assigned",
+          description: "Set up or join a company before adding staff.",
+        });
+        return;
+      }
+      await createEmployee.mutateAsync({
       full_name: data.full_name,
       email: data.email || null,
       phone: data.phone || null,
@@ -198,7 +215,7 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
       hire_date: data.hire_date || null,
       status: data.status as EmployeeStatus,
       salary: data.salary ? parseFloat(data.salary) : null,
-      company_id: profile?.company_id ?? "",
+        company_id: profile.company_id,
     });
     onOpenChange(false);
   };
