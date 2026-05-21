@@ -54,19 +54,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    const { data: callerProfile } = await admin
-      .from('profiles')
-      .select('company_id')
-      .eq('id', callerId)
-      .maybeSingle()
-    const companyId = callerProfile?.company_id
-    if (!companyId) {
-      return new Response(JSON.stringify({ error: 'Caller has no company' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     const body = await req.json().catch(() => ({}))
     const {
       email,
@@ -79,7 +66,36 @@ Deno.serve(async (req) => {
       hire_date,
       salary,
       role,
+      company_id: bodyCompanyId,
     } = body ?? {}
+
+    const isSuperAdmin = roles.includes('super_admin')
+
+    const { data: callerProfile } = await admin
+      .from('profiles')
+      .select('company_id')
+      .eq('id', callerId)
+      .maybeSingle()
+
+    // Resolve target company:
+    // - super_admin: use body.company_id if provided, else their own profile company
+    // - company_admin: always use their own profile company (ignore body override)
+    let companyId: string | null = null
+    if (isSuperAdmin) {
+      companyId = bodyCompanyId ?? callerProfile?.company_id ?? null
+    } else {
+      companyId = callerProfile?.company_id ?? null
+    }
+    if (!companyId) {
+      return new Response(
+        JSON.stringify({
+          error: isSuperAdmin
+            ? 'No company selected. Super admin must provide a company_id, or assign yourself to a company first.'
+            : 'Your account is not linked to a company yet. Complete company setup first.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
+    }
 
     if (!email || !password || !full_name) {
       return new Response(
