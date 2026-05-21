@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useEmployees } from "@/hooks/useEmployees";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type Employee = Database["public"]["Tables"]["employees"]["Row"];
@@ -52,6 +53,7 @@ const statusLabels: Record<EmployeeStatus, string> = {
 
 export function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmployee }: EmployeeListProps) {
   const { employees, isLoading, deleteEmployee } = useEmployees();
+  const { isAdmin } = useAuth();
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | "all">("all");
@@ -196,17 +198,23 @@ export function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmployee }: 
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            deleteEmployee.mutate(employee.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
+                        {isAdmin() && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Delete ${employee.full_name}? This also removes their login account.`)) {
+                                  deleteEmployee.mutate(employee.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
