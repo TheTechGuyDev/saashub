@@ -77,12 +77,21 @@ export function useEmployees() {
 
   const deleteEmployee = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("employees")
-        .delete()
-        .eq("id", id);
-      
-      if (error) throw error;
+      const { data, error } = await supabase.functions.invoke("delete-staff-account", {
+        body: { employee_id: id },
+      });
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx?.json) {
+            const parsed = await ctx.json();
+            msg = parsed?.error ?? msg;
+          }
+        } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
