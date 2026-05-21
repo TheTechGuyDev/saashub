@@ -65,7 +65,7 @@ const departments = [
 
 export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogProps) {
   const { profile } = useAuth();
-  const { createEmployee, updateEmployee } = useEmployees();
+  const { createEmployee, updateEmployee, employees } = useEmployees();
   const { toast } = useToast();
   const qc = useQueryClient();
   const isEditing = !!employee;
@@ -134,6 +134,8 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
 
     // Creating: if email + password provided, create login account via edge function
     if (data.email && data.password) {
+      const targetCompanyId =
+        profile?.company_id ?? employees.find((e) => e.company_id)?.company_id ?? null;
       const { data: result, error } = await supabase.functions.invoke(
         "create-staff-account",
         {
@@ -148,14 +150,31 @@ export function EmployeeDialog({ open, onOpenChange, employee }: EmployeeDialogP
             hire_date: data.hire_date || null,
             salary: data.salary ? parseFloat(data.salary) : null,
             role: data.role ?? "staff",
+            company_id: targetCompanyId,
           },
         },
       );
+      let errorMessage: string | undefined = (result as any)?.error;
+      if (error && !errorMessage) {
+        // supabase-js throws on non-2xx and discards body; read it from error.context
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const parsed = await ctx.json();
+            errorMessage = parsed?.error ?? JSON.stringify(parsed);
+          } else if (ctx && typeof ctx.text === "function") {
+            errorMessage = await ctx.text();
+          }
+        } catch {
+          /* ignore */
+        }
+        errorMessage = errorMessage ?? error.message;
+      }
       if (error || (result as any)?.error) {
         toast({
           variant: "destructive",
           title: "Failed to create staff account",
-          description: (result as any)?.error ?? error?.message,
+          description: errorMessage,
         });
         return;
       }
