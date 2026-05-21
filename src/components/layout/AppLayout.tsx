@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { CompanyOnboardingDialog, OnboardingTooltips } from "@/components/onboarding";
+import { Button } from "@/components/ui/button";
+import { Building2, Rocket } from "lucide-react";
 
 export function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -65,6 +67,25 @@ export function AppLayout() {
         )}
       >
         <div className="p-6">
+          {needsOnboarding && (
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border border-primary/40 bg-gradient-to-br from-primary/5 to-accent/5 p-4">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Rocket className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold">Finish setting up your company</p>
+                  <p className="text-sm text-muted-foreground">
+                    Create your company profile to unlock the full dashboard and start adding staff.
+                  </p>
+                </div>
+              </div>
+              <Button onClick={() => setOnboardingOpen(true)}>
+                <Building2 className="h-4 w-4 mr-2" />
+                Setup your company
+              </Button>
+            </div>
+          )}
           <Outlet context={{ needsOnboarding, openOnboarding: () => setOnboardingOpen(true) }} />
         </div>
       </main>
