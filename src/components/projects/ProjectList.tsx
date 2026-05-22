@@ -7,6 +7,7 @@ import { FolderKanban, Plus, Calendar, DollarSign } from "lucide-react";
 import { Project, useProjects } from "@/hooks/useProjects";
 import { ProjectDialog } from "./ProjectDialog";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 const statusColors: Record<string, string> = {
   planning: "bg-muted text-muted-foreground",
@@ -24,6 +25,8 @@ interface ProjectListProps {
 export function ProjectList({ projects, isLoading }: ProjectListProps) {
   const [editProject, setEditProject] = useState<Project | null>(null);
   const { deleteProject } = useProjects();
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const canManage = isAdmin() || isSuperAdmin();
 
   if (isLoading) {
     return (
@@ -83,18 +86,20 @@ export function ProjectList({ projects, isLoading }: ProjectListProps) {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button size="sm" variant="outline" onClick={() => setEditProject(project)}>
-                  Edit
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="destructive" 
-                  onClick={() => deleteProject.mutate(project.id)}
-                >
-                  Delete
-                </Button>
-              </div>
+              {canManage && (
+                <div className="flex gap-2 mt-4">
+                  <Button size="sm" variant="outline" onClick={() => setEditProject(project)}>
+                    Edit
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="destructive" 
+                    onClick={() => deleteProject.mutate(project.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

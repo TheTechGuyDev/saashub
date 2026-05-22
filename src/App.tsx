@@ -87,24 +87,60 @@ const App = () => (
             }>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/crm" element={<CRM />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/call-centre" element={<CallCentre />} />
+              <Route path="/analytics" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <Analytics />
+                </ProtectedRoute>
+              } />
+              <Route path="/call-centre" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <CallCentre />
+                </ProtectedRoute>
+              } />
               <Route path="/call-logs" element={<CallLogs />} />
               <Route path="/whatsapp" element={<WhatsApp />} />
-              <Route path="/email-marketing" element={<EmailMarketing />} />
+              <Route path="/email-marketing" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <EmailMarketing />
+                </ProtectedRoute>
+              } />
               <Route path="/tickets" element={<SupportTickets />} />
-              <Route path="/staff" element={<StaffManagement />} />
+              <Route path="/staff" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <StaffManagement />
+                </ProtectedRoute>
+              } />
               <Route path="/staff-logs" element={
                 <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
                   <StaffLogs />
                 </ProtectedRoute>
               } />
               <Route path="/projects" element={<Projects />} />
-              <Route path="/branches" element={<Branches />} />
-              <Route path="/finance" element={<Finance />} />
-              <Route path="/inventory" element={<Inventory />} />
-              <Route path="/acquisition" element={<CustomerAcquisition />} />
-              <Route path="/social-media" element={<SocialMedia />} />
+              <Route path="/branches" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <Branches />
+                </ProtectedRoute>
+              } />
+              <Route path="/finance" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <Finance />
+                </ProtectedRoute>
+              } />
+              <Route path="/inventory" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <Inventory />
+                </ProtectedRoute>
+              } />
+              <Route path="/acquisition" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <CustomerAcquisition />
+                </ProtectedRoute>
+              } />
+              <Route path="/social-media" element={
+                <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
+                  <SocialMedia />
+                </ProtectedRoute>
+              } />
               <Route path="/documents" element={<Documents />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/knowledge-base" element={<KnowledgeBase />} />

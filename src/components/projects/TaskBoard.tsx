@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, GripVertical } from "lucide-react";
 import { Task, useTasks, Project } from "@/hooks/useProjects";
 import { TaskDialog } from "./TaskDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 const columns = [
   { id: "todo", label: "To Do", color: "bg-muted" },
@@ -31,6 +32,8 @@ export function TaskBoard({ tasks, isLoading, projects }: TaskBoardProps) {
   const [showDialog, setShowDialog] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const { updateTask } = useTasks();
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const canManage = isAdmin() || isSuperAdmin();
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData("taskId", taskId);
@@ -56,12 +59,14 @@ export function TaskBoard({ tasks, isLoading, projects }: TaskBoardProps) {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setShowDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Task
-        </Button>
-      </div>
+      {canManage && (
+        <div className="flex justify-end mb-4">
+          <Button onClick={() => setShowDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-4">
         {columns.map((column) => {

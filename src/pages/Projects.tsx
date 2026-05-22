@@ -7,23 +7,26 @@ import { useProjects, useTasks } from "@/hooks/useProjects";
 import { ProjectList } from "@/components/projects/ProjectList";
 import { ProjectDialog } from "@/components/projects/ProjectDialog";
 import { TaskBoard } from "@/components/projects/TaskBoard";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Projects() {
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [activeTab, setActiveTab] = useState("projects");
   const { projects, isLoading: projectsLoading } = useProjects();
   const { tasks, isLoading: tasksLoading } = useTasks();
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const canManage = isAdmin() || isSuperAdmin();
 
   return (
     <div>
       <PageHeader
-        title="Project Management"
-        description="Manage projects, tasks, and milestones."
+        title={canManage ? "Project Management" : "My Projects & Tasks"}
+        description={canManage ? "Manage projects, tasks, and milestones." : "View projects and tasks assigned to you."}
         icon={FolderKanban}
-        action={{
+        action={canManage ? {
           label: "New Project",
           onClick: () => setShowProjectDialog(true),
-        }}
+        } : undefined}
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
