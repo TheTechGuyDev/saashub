@@ -1,4 +1,4 @@
-import { Bell, Search, Moon, Sun, User, Menu, LogOut } from "lucide-react";
+import { Bell, Search, Moon, Sun, User, Menu, LogOut, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { CompanyOnboardingDialog } from "@/components/onboarding";
 
 interface AppHeaderProps {
   sidebarCollapsed: boolean;
@@ -23,8 +24,11 @@ interface AppHeaderProps {
 
 export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderProps) {
   const [darkMode, setDarkMode] = useState(false);
-  const { user, profile, signOut } = useAuth();
+  const [setupOpen, setSetupOpen] = useState(false);
+  const { user, profile, roles, signOut, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+
+  const needsCompanySetup = !isSuperAdmin() && !profile?.company_id;
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -148,6 +152,15 @@ export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderPro
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {needsCompanySetup && (
+                <>
+                  <DropdownMenuItem onClick={() => setSetupOpen(true)}>
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Setup company
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem onClick={() => navigate("/settings")}>
                 Profile
               </DropdownMenuItem>
@@ -166,6 +179,7 @@ export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderPro
           </DropdownMenu>
         </div>
       </div>
+      <CompanyOnboardingDialog open={setupOpen} onOpenChange={setSetupOpen} />
     </header>
   );
 }

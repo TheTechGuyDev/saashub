@@ -18,7 +18,8 @@ export default function CRM() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const { customers } = useCustomers();
-  const { user } = useAuth();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const canManage = isAdmin() || isSuperAdmin();
 
   const stats = {
     total: customers.length,
@@ -55,15 +56,15 @@ export default function CRM() {
     <div className="space-y-6">
       <PageHeader
         title="CRM"
-        description="Manage your customers, leads, and sales pipeline."
+        description={canManage ? "Manage your customers, leads, and sales pipeline." : "View and update customers assigned to you."}
         icon={Users}
-        action={{
+        action={canManage ? {
           label: "Add Customer",
           onClick: () => {
             setSelectedCustomer(null);
             setDialogOpen(true);
           },
-        }}
+        } : undefined}
       />
 
       {/* Stats Cards */}
@@ -123,14 +124,14 @@ export default function CRM() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="list" className="space-y-4">
+      <Tabs defaultValue={canManage ? "list" : "mine"} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="list">Customer List</TabsTrigger>
+          {canManage && <TabsTrigger value="list">Customer List</TabsTrigger>}
           <TabsTrigger value="mine">My Customers</TabsTrigger>
-          <TabsTrigger value="pipeline">Sales Pipeline</TabsTrigger>
+          {canManage && <TabsTrigger value="pipeline">Sales Pipeline</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value="list">
+        {canManage && <TabsContent value="list">
           <CustomerList
             onAddCustomer={() => {
               setSelectedCustomer(null);
@@ -142,7 +143,7 @@ export default function CRM() {
             }}
             onViewCustomer={setViewingCustomer}
           />
-        </TabsContent>
+        </TabsContent>}
 
         <TabsContent value="mine">
           <CustomerList
@@ -159,9 +160,9 @@ export default function CRM() {
           />
         </TabsContent>
 
-        <TabsContent value="pipeline">
+        {canManage && <TabsContent value="pipeline">
           <SalesPipeline onViewCustomer={setViewingCustomer} />
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
 
       {/* Customer Dialog */}

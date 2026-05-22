@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCustomers } from "@/hooks/useCustomers";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type Customer = Database["public"]["Tables"]["customers"]["Row"];
@@ -59,6 +60,8 @@ export function CustomerList({ onAddCustomer, onEditCustomer, onViewCustomer, as
   const { customers, isLoading, deleteCustomer } = useCustomers();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerStatus | "all">("all");
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const canManage = isAdmin() || isSuperAdmin();
 
   const filteredCustomers = customers.filter((customer) => {
     if (assignedToUserId && customer.assigned_to !== assignedToUserId) return false;
@@ -107,10 +110,12 @@ export function CustomerList({ onAddCustomer, onEditCustomer, onViewCustomer, as
             <SelectItem value="closed_lost">Closed Lost</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={onAddCustomer} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Customer
-        </Button>
+        {canManage && (
+          <Button onClick={onAddCustomer} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -195,17 +200,21 @@ export function CustomerList({ onAddCustomer, onEditCustomer, onViewCustomer, as
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            deleteCustomer.mutate(customer.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
+                        {canManage && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                deleteCustomer.mutate(customer.id);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

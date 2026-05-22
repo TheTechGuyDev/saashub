@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Settings as SettingsIcon, Building2, Users, Activity, Cog, Link } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, Activity, Cog, Link, Briefcase } from "lucide-react";
 import { PageHeader } from "@/components/common";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { CompaniesTab } from "@/components/settings/CompaniesTab";
+import { CompanyDetailsTab } from "@/components/settings/CompanyDetailsTab";
 import { UsersTab } from "@/components/settings/UsersTab";
 import { ActivityTab } from "@/components/settings/ActivityTab";
 import { SystemTab } from "@/components/settings/SystemTab";
@@ -13,7 +14,7 @@ export default function Settings() {
   const { isSuperAdmin, hasRole } = useAuth();
   const superAdmin = isSuperAdmin();
   const companyAdmin = hasRole ? hasRole("company_admin") : false;
-  const [activeTab, setActiveTab] = useState(superAdmin ? "companies" : "users");
+  const [activeTab, setActiveTab] = useState(superAdmin ? "companies" : "company");
 
   if (!superAdmin && !companyAdmin) {
     return (
@@ -40,11 +41,17 @@ export default function Settings() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className={`grid w-full max-w-3xl ${superAdmin ? "grid-cols-5" : "grid-cols-4"}`}>
+        <TabsList className={`grid w-full max-w-3xl ${superAdmin ? "grid-cols-5" : "grid-cols-5"}`}>
           {superAdmin && (
             <TabsTrigger value="companies" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               <span className="hidden sm:inline">Companies</span>
+            </TabsTrigger>
+          )}
+          {!superAdmin && (
+            <TabsTrigger value="company" className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4" />
+              <span className="hidden sm:inline">Company</span>
             </TabsTrigger>
           )}
           <TabsTrigger value="users" className="flex items-center gap-2">
@@ -68,6 +75,12 @@ export default function Settings() {
         {superAdmin && (
           <TabsContent value="companies">
             <CompaniesTab />
+          </TabsContent>
+        )}
+
+        {!superAdmin && (
+          <TabsContent value="company">
+            <CompanyDetailsTab />
           </TabsContent>
         )}
 

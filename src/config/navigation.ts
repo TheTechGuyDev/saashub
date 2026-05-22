@@ -29,6 +29,7 @@ export interface NavItem {
   badge?: string;
   group: string;
   adminOnly?: boolean;
+  staffAllowed?: boolean;
 }
 
 export interface NavGroup {
@@ -38,21 +39,21 @@ export interface NavGroup {
 
 export const navigationItems: NavItem[] = [
   // Core
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, group: "Core" },
-  { title: "CRM", url: "/crm", icon: Users, group: "Core" },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, group: "Core", staffAllowed: true },
+  { title: "CRM", url: "/crm", icon: Users, group: "Core", staffAllowed: true },
   { title: "Data Analysis", url: "/analytics", icon: BarChart3, group: "Core" },
   
   // Communications
   { title: "Call Centre", url: "/call-centre", icon: Phone, group: "Communications" },
-  { title: "Call Logs", url: "/call-logs", icon: PhoneCall, group: "Communications" },
-  { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle, group: "Communications" },
+  { title: "Call Logs", url: "/call-logs", icon: PhoneCall, group: "Communications", staffAllowed: true },
+  { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle, group: "Communications", staffAllowed: true },
   { title: "Email Marketing", url: "/email-marketing", icon: Mail, group: "Communications" },
-  { title: "Support Tickets", url: "/tickets", icon: Ticket, group: "Communications" },
+  { title: "Support Tickets", url: "/tickets", icon: Ticket, group: "Communications", staffAllowed: true },
   
   // Operations
   { title: "Staff Management", url: "/staff", icon: UsersRound, group: "Operations" },
   { title: "Staff Logs", url: "/staff-logs", icon: Activity, group: "Operations", adminOnly: true },
-  { title: "Projects", url: "/projects", icon: FolderKanban, group: "Operations" },
+  { title: "Projects", url: "/projects", icon: FolderKanban, group: "Operations", staffAllowed: true },
   { title: "Branches", url: "/branches", icon: Building2, group: "Operations" },
   
   // Finance
@@ -64,19 +65,24 @@ export const navigationItems: NavItem[] = [
   { title: "Social Media", url: "/social-media", icon: Share2, group: "Growth" },
   
   // Resources
-  { title: "Documents", url: "/documents", icon: FileText, group: "Resources" },
-  { title: "Calendar", url: "/calendar", icon: Calendar, group: "Resources" },
-  { title: "Knowledge Base", url: "/knowledge-base", icon: BookOpen, group: "Resources" },
+  { title: "Documents", url: "/documents", icon: FileText, group: "Resources", staffAllowed: true },
+  { title: "Calendar", url: "/calendar", icon: Calendar, group: "Resources", staffAllowed: true },
+  { title: "Knowledge Base", url: "/knowledge-base", icon: BookOpen, group: "Resources", staffAllowed: true },
   
   // Admin
   { title: "Settings", url: "/settings", icon: Settings, group: "Admin", adminOnly: true },
 ];
 
-export const getGroupedNavigation = (isAdmin = true): NavGroup[] => {
+export const getGroupedNavigation = (isAdmin = true, isStaff = false): NavGroup[] => {
   const groups: { [key: string]: NavItem[] } = {};
 
   navigationItems
-    .filter((item) => (item.adminOnly ? isAdmin : true))
+    .filter((item) => {
+      if (item.adminOnly && !isAdmin) return false;
+      // Non-admin staff only see explicitly staff-allowed items
+      if (!isAdmin && isStaff && !item.staffAllowed) return false;
+      return true;
+    })
     .forEach((item) => {
     if (!groups[item.group]) {
       groups[item.group] = [];

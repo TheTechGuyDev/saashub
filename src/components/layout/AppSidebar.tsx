@@ -20,8 +20,9 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
-  const { isAdmin } = useAuth();
-  const groups = getGroupedNavigation(isAdmin());
+  const { isAdmin, isSuperAdmin } = useAuth();
+  const admin = isAdmin() || isSuperAdmin();
+  const groups = getGroupedNavigation(admin, !admin);
   const [openGroups, setOpenGroups] = useState<string[]>(
     groups.map((g) => g.label)
   );
