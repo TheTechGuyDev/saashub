@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Search, Plus, MoreHorizontal, Mail, Phone, Trash2, Edit, User } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Mail, Phone, Trash2, Edit, User, KeyRound, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -54,9 +57,36 @@ const statusLabels: Record<EmployeeStatus, string> = {
 export function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmployee }: EmployeeListProps) {
   const { employees, isLoading, deleteEmployee } = useEmployees();
   const { isAdmin } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | "all">("all");
+  const [resetResult, setResetResult] = useState<{ name: string; password: string } | null>(null);
+  const [resetting, setResetting] = useState<string | null>(null);
+
+  const resetPassword = async (emp: Employee) => {
+    if (!confirm(`Generate a new temporary password for ${emp.full_name}?`)) return;
+    setResetting(emp.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("reset-staff-password", {
+        body: { mode: "admin", employee_id: emp.id },
+      });
+      if (error) {
+        let msg = error.message;
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx?.json) { const p = await ctx.json(); msg = p?.error ?? msg; }
+        } catch { /* */ }
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setResetResult({ name: emp.full_name, password: (data as any).temp_password });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Failed to reset password", description: (e as Error).message });
+    } finally {
+      setResetting(null);
+    }
+  };
 
   // Get unique departments
   const departments = Array.from(new Set(employees.map(e => e.department).filter(Boolean)));
@@ -202,6 +232,13 @@ export function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmployee }: 
                           <>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
+                              onClick={(e) => { e.stopPropagation(); resetPassword(employee); }}
+                              disabled={resetting === employee.id}
+                            >
+                              <KeyRound className="h-4 w-4 mr-2" />
+                              Reset password
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
                               className="text-destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -224,6 +261,35 @@ export function EmployeeList({ onAddEmployee, onEditEmployee, onViewEmployee }: 
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!resetResult} onOpenChange={(o) => { if (!o) setResetResult(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Temporary password generated</DialogTitle>
+            <DialogDescription>
+              Share this password securely with {resetResult?.name}. They should change it after signing in.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 p-3 rounded-md bg-muted font-mono text-sm">
+            <span className="flex-1 select-all">{resetResult?.password}</span>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                if (resetResult) {
+                  navigator.clipboard.writeText(resetResult.password);
+                  toast({ title: "Copied to clipboard" });
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setResetResult(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
