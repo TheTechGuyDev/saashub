@@ -1,92 +1,109 @@
-# Fix Staff/Employee scoping + clarify Setup Company button
 
-## 1. Setup Company button — why it isn't showing
+## Overview
 
-The "Setup your company" banner only renders when `needsOnboarding` is true, which means:
+Five independent enhancements scoped to the staff/admin experience. Backend changes are minimal — most logic reuses existing tables and RLS. One new table (`role_permissions`) and one new edge function (`reset-staff-password`) are required.
 
-- The user is signed in, AND
-- They are NOT a super admin, AND
-- Their profile has NO `company_id`
+---
 
-In the screenshot you sent, the sidebar shows admin-only items (Staff Logs, Settings) and the FA avatar — that user is already a `company_admin` with a `company_id` set, so the banner is intentionally hidden. The popup also doesn't reopen because there is nothing to onboard.
+## 1. Advanced filters on Staff Logs
 
-If a *different* freshly-registered user (no company yet) signs in, the banner will appear at the top of every page (it lives in `AppLayout.tsx`, above the route outlet) and the dialog will auto-open.
+**File:** `src/pages/StaffLogs.tsx`
 
-### What I'll do
+Add to the existing filter bar:
+- **Date range picker** (from / to) using shadcn Calendar in a Popover
+- **Linked entity filter**: dropdown `All / Tasks / Customers / Projects` filtering by `entity_type`
+- **Status / outcome filter**: dropdown driven by distinct `metadata.status` values present in results
 
-- Keep the auto-open dialog + top banner behavior.
-- Add a **"Setup company"** menu item in the header user dropdown (`AppHeader`) that is visible *only* when `needsOnboarding` is true, so the user always has a clear path to reopen the dialog even if they dismissed it.
-- Confirm with you in the response whether the user in the screenshot is actually missing `company_id` (looks like they are not), so we can rule out a data issue. They are not. But there should be a setting that they can edit company details.
+Instant updates: filters are already client-side state; results recompute via `useMemo` on every keystroke. Add Supabase Realtime subscription on `staff_activities` (scoped to `company_id`) so new activities appear without a refresh.
 
-## 2. Staff/Employee should NOT see admin features
+No DB changes.
 
-Right now staff inherit nearly the whole sidebar (CRM, Projects, Branches, Finance, Inventory, Email Marketing, Analytics, etc.) and can open admin pages directly via URL. They can also create projects/tasks from those pages.
+---
 
-### Sidebar filtering
+## 2. Permission matrix UI
 
-Extend `NavItem` in `src/config/navigation.ts` with a new flag `staffAllowed?: boolean`. Tag only the items a staff member should see:
+**New table** `role_permissions`:
+- `company_id uuid`, `role app_role`, `module text`, `can_view bool`, `can_create bool`, `can_edit bool`, `can_delete bool`
+- Unique `(company_id, role, module)`
+- RLS: company admins manage own company; everyone in company can read
 
-- Dashboard
-- My Tasks (Projects page, but read-only view — see below)
-- Calendar
-- Documents
-- Knowledge Base
-- Call Logs (their own)
-- WhatsApp (if they're customer-facing — confirm)
+**New helper RPC** `has_permission(_user_id, _module, _action)` — returns true if any of the user's roles grants the action, with sensible defaults (super_admin = all, company_admin = all, staff = view+edit on their modules, user = view only) when no row exists.
 
-Update `getGroupedNavigation` to accept an `isStaff` flag. When `isStaff && !isAdmin`, filter to items where `staffAllowed === true`. Update `AppSidebar` to pass that flag.
+**New UI** `src/components/settings/PermissionsTab.tsx` (added as a tab in `Settings.tsx`, visible only to `company_admin` / `super_admin`):
+- Grid: rows = modules (CRM, Projects, Documents, Calendar, Knowledge Base, WhatsApp, Call Logs), columns = roles (company_admin, staff, user) × actions (view/create/edit/delete)
+- Checkboxes saved via upsert into `role_permissions`
+- Reset-to-defaults button
 
-### Route-level protection
+**New hook** `src/hooks/usePermissions.ts` exposing `can(module, action)` used to gate buttons across the app (incremental adoption — start with Projects "New Project" and CRM "Add Customer" already gated; replace `isAdmin()` calls with `can(...)` over time).
 
-In `src/App.tsx`, wrap admin-only routes with `<ProtectedRoute requiredRoles={["company_admin","super_admin"]}>`:
+---
 
-- `/staff`, `/staff-logs`
-- `/branches`
-- `/finance`, `/inventory`
-- `/analytics`
-- `/email-marketing`, `/social-media`, `/acquisition`
-- `/call-centre`
-- `/tickets` (admin view) — staff still get a "My Tickets" view if needed
-- `/settings`
+## 3. My Customer detail page
 
-Staff-allowed routes (`/dashboard`, `/projects`, `/crm`, `/calendar`, `/documents`, `/knowledge-base`, `/call-logs`, `/whatsapp`) remain accessible.
+**New page** `src/pages/MyCustomerDetail.tsx`, route `/my-customers/:id`
+- Header: name, company, status badge, pipeline stage, value
+- Tabs:
+  - **Overview** — contact info, tags, notes (editable inline, writes to `customers.notes`)
+  - **Timeline** — `customer_activities` for this customer, newest first
+  - **Calls** — `call_logs` filtered by `customer_id`
+  - **WhatsApp** — `whatsapp_conversations` filtered by `customer_id` (read-only preview, link to inbox)
+- Add note form → inserts into `customer_activities` (`type: 'note'`)
 
-### Hide create/edit controls for staff
+Linked from `StaffDashboard.tsx` "My Customers" card (each row becomes a link) and from `CRM.tsx` "My Customers" tab.
 
-In the staff-allowed pages, gate action buttons behind `isAdmin()`:
+No DB changes.
 
-- `Projects.tsx` / `ProjectList.tsx` / `TaskBoard.tsx`: hide "New Project" and "New Task" buttons for non-admins. Staff can still open a task they're assigned to and update its status/notes.
-- `CRM.tsx` / `CustomerList.tsx`: for staff, scope the list to customers `assigned_to = user.id` and hide "New Customer" / delete actions.
-- `Documents.tsx`: keep upload, but hide delete on other users' files.
-- `Calendar.tsx`: staff can create personal events, but not company-wide ones.
+---
 
-### Staff Dashboard cleanup
+## 4. Task updates from staff dashboard
 
-`StaffDashboard.tsx` currently looks fine in scope (My Tasks, My Customers, Attendance, My Activity). I'll:
+**File:** `src/components/dashboard/StaffDashboard.tsx`
 
-- Replace the "Open CRM" / "View all" buttons that link to admin pages with links that stay within the staff-allowed views.
-- Remove the "My Customers" card if staff aren't supposed to see CRM (confirm in question below).
-- Add a "My Leave Requests" quick card so staff have somewhere to submit leave.
+In the "My Tasks" list, each item becomes interactive:
+- Status `Select` (todo / in_progress / done) — updates `tasks.status` (+ `completed_at` when done)
+- "Add note" popover → appends to `tasks.description` with timestamp + author, OR (preferred) writes to `staff_activities` with `entity_type='task'`, `entity_id=task.id`, `activity_type='task_note'`
+- Each status change logs a `staff_activities` row (`activity_type='task_status_change'`)
 
-## Files to change
+Reuses existing `Staff can manage company tasks` RLS — no DB changes.
+
+---
+
+## 5. Staff password reset flow
+
+**New edge function** `supabase/functions/reset-staff-password/index.ts`
+- Two modes:
+  - **Admin-initiated**: company admin calls with `{ employee_id }` → service-role generates a new temp password, updates auth user, returns the new password to the admin to share securely. Logs `staff_activities`.
+  - **Self-serve**: any authenticated user calls with `{ new_password }` after confirming current password (re-auth via `supabase.auth.signInWithPassword`) → updates own password via service role.
+- Validates caller JWT; admin mode also checks `is_company_admin_or_higher` and that target employee belongs to caller's company.
+
+**UI changes:**
+- `src/components/staff/EmployeeList.tsx` — add "Reset password" item to admin dropdown (calls function, shows new temp password in a copyable dialog)
+- `src/pages/Settings.tsx` — new "Security" section with "Change password" form for the current user (any role) calling the self-serve mode
+
+---
+
+## Technical summary
 
 ```text
-src/config/navigation.ts          add staffAllowed flag + isStaff filter
-src/components/layout/AppSidebar.tsx  pass isStaff to nav filter
-src/components/layout/AppHeader.tsx   add Setup Company menu item when needsOnboarding
-src/App.tsx                       wrap admin routes in ProtectedRoute with roles
-src/pages/Projects.tsx
-src/components/projects/ProjectList.tsx
-src/components/projects/TaskBoard.tsx
-src/pages/CRM.tsx
-src/components/crm/CustomerList.tsx
-src/pages/Documents.tsx
-src/pages/Calendar.tsx
-src/components/dashboard/StaffDashboard.tsx
+DB:
+  + role_permissions table + RLS + has_permission() RPC
+
+Edge functions:
+  + reset-staff-password
+
+New files:
+  src/pages/MyCustomerDetail.tsx
+  src/components/settings/PermissionsTab.tsx
+  src/hooks/usePermissions.ts
+  src/components/staff/ChangePasswordForm.tsx
+
+Modified files:
+  src/App.tsx                                 (route /my-customers/:id)
+  src/pages/StaffLogs.tsx                     (filters + realtime)
+  src/pages/Settings.tsx                      (Permissions tab + Security section)
+  src/components/dashboard/StaffDashboard.tsx (interactive tasks + customer links)
+  src/components/staff/EmployeeList.tsx       (reset password action)
+  src/components/crm/CustomerList.tsx         (link rows for staff)
 ```
 
-No DB / RLS changes — backend already isolates by `company_id`; this PR adds UI + route enforcement.
-
-## Open question
-
-Before I implement, one quick choice on CRM access for non-admin staff — see the question I'll ask next.
+No changes to existing RLS policies; new functionality is additive.
