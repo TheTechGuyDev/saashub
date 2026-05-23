@@ -1,4 +1,4 @@
-import { Bell, Search, Moon, Sun, User, Menu, LogOut, Building2 } from "lucide-react";
+import { Bell, Search, Moon, Sun, User, Menu, LogOut, Building2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -161,12 +161,19 @@ export function AppHeader({ sidebarCollapsed, onMobileMenuToggle }: AppHeaderPro
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
-                Profile
+              <DropdownMenuItem onClick={() => navigate("/account")}>
+                <User className="h-4 w-4 mr-2" />
+                My Account
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate("/settings")}>
-                Settings
+              <DropdownMenuItem onClick={() => navigate("/account")}>
+                <KeyRound className="h-4 w-4 mr-2" />
+                Change password
               </DropdownMenuItem>
+              {(isSuperAdmin() || roles.includes("company_admin")) && (
+                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                  Settings
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-destructive focus:text-destructive"
