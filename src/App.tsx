@@ -47,6 +47,7 @@ import KnowledgeBase from "./pages/KnowledgeBase";
 import StaffLogs from "./pages/StaffLogs";
 import Settings from "./pages/Settings";
 import MyCustomerDetail from "./pages/MyCustomerDetail";
+import Account from "./pages/Account";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -146,6 +147,7 @@ const App = () => (
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/knowledge-base" element={<KnowledgeBase />} />
               <Route path="/my-customers/:id" element={<MyCustomerDetail />} />
+              <Route path="/account" element={<Account />} />
               <Route path="/settings" element={
                 <ProtectedRoute requiredRoles={["super_admin", "company_admin"]}>
                   <Settings />
