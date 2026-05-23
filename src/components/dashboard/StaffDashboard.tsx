@@ -1,22 +1,33 @@
 import { useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { CheckSquare, Users, Clock, Calendar as CalendarIcon, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEmployees, useAttendance } from "@/hooks/useEmployees";
 import { useStaffActivities, useLogActivity } from "@/hooks/useStaffActivities";
 import { formatDistanceToNow, format } from "date-fns";
+import { useState } from "react";
+import type { Database } from "@/integrations/supabase/types";
+
+type TaskStatus = Database["public"]["Enums"]["task_status"];
 
 export function StaffDashboard() {
   const { user, profile } = useAuth();
   const { employees } = useEmployees();
   const { clockIn, clockOut } = useAttendance();
   const logActivity = useLogActivity();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   const currentEmployee = useMemo(
     () => employees.find((e) => e.user_id === user?.id),
@@ -49,6 +60,43 @@ export function StaffDashboard() {
     },
     enabled: !!user?.id,
   });
+
+  const updateTaskStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: TaskStatus }) => {
+      const updates: any = { status };
+      if (status === "done") updates.completed_at = new Date().toISOString();
+      else updates.completed_at = null;
+      const { error } = await supabase.from("tasks").update(updates).eq("id", id);
+      if (error) throw error;
+      return { id, status };
+    },
+    onSuccess: ({ id, status }) => {
+      qc.invalidateQueries({ queryKey: ["my-tasks", user?.id] });
+      logActivity.mutate({
+        activity_type: "task_status_change",
+        description: `Updated task status to ${status}`,
+        entity_type: "task",
+        entity_id: id,
+        metadata: { status },
+      });
+    },
+    onError: (e: Error) => {
+      toast({ variant: "destructive", title: "Failed to update task", description: e.message });
+    },
+  });
+
+  const addTaskNote = async (taskId: string) => {
+    const text = (noteDrafts[taskId] ?? "").trim();
+    if (!text) return;
+    await logActivity.mutateAsync({
+      activity_type: "task_note",
+      description: text,
+      entity_type: "task",
+      entity_id: taskId,
+    });
+    setNoteDrafts((d) => ({ ...d, [taskId]: "" }));
+    toast({ title: "Note added" });
+  };
 
   const { data: myCustomers } = useQuery({
     queryKey: ["my-customers", user?.id],
@@ -206,17 +254,50 @@ export function StaffDashboard() {
                 {openTasks.slice(0, 6).map((t) => (
                   <li
                     key={t.id}
-                    className="flex items-start justify-between border-b border-border pb-2 last:border-0"
+                    className="flex flex-col gap-2 border-b border-border pb-3 last:border-0"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{t.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t.due_date ? `Due ${format(new Date(t.due_date), "MMM d")}` : "No due date"}
-                      </p>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{t.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t.due_date ? `Due ${format(new Date(t.due_date), "MMM d")}` : "No due date"}
+                        </p>
+                      </div>
+                      <Select
+                        value={t.status as string}
+                        onValueChange={(v) => updateTaskStatus.mutate({ id: t.id, status: v as TaskStatus })}
+                      >
+                        <SelectTrigger className="w-32 h-7 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="todo">To do</SelectItem>
+                          <SelectItem value="in_progress">In progress</SelectItem>
+                          <SelectItem value="done">Done</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                            Note
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72">
+                          <p className="text-sm font-medium mb-2">Add note to task</p>
+                          <Textarea
+                            rows={3}
+                            value={noteDrafts[t.id] ?? ""}
+                            onChange={(e) => setNoteDrafts((d) => ({ ...d, [t.id]: e.target.value }))}
+                            placeholder="Progress, blockers, decisions..."
+                          />
+                          <div className="flex justify-end mt-2">
+                            <Button size="sm" onClick={() => addTaskNote(t.id)} disabled={!(noteDrafts[t.id] ?? "").trim()}>
+                              Save
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
-                    <Badge variant="outline" className="ml-2 capitalize">
-                      {String(t.status).replace("_", " ")}
-                    </Badge>
                   </li>
                 ))}
               </ul>
@@ -242,19 +323,21 @@ export function StaffDashboard() {
             ) : (
               <ul className="space-y-3">
                 {myCustomers!.slice(0, 6).map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center justify-between border-b border-border pb-2 last:border-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{c.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {c.company_name ?? c.email ?? ""}
-                      </p>
-                    </div>
-                    <Badge variant="secondary" className="ml-2 capitalize">
-                      {String(c.status).replace("_", " ")}
-                    </Badge>
+                  <li key={c.id}>
+                    <Link
+                      to={`/my-customers/${c.id}`}
+                      className="flex items-center justify-between border-b border-border pb-2 last:border-0 hover:bg-muted/40 rounded px-2 -mx-2 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {c.company_name ?? c.email ?? ""}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="ml-2 capitalize">
+                        {String(c.status).replace("_", " ")}
+                      </Badge>
+                    </Link>
                   </li>
                 ))}
               </ul>
